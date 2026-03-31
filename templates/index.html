@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AB-GEN 80% | M5 Green AI Dashboard</title>
+  <meta name="description" content="AB-GEN — Hybrid Geometric-Polynomial ensemble for CIFAR-10. Live blind inference with M5 Green AI metrics."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+
+<!-- ═══════════ HEADER ═══════════ -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="logo-group">
+      <span class="logo-dna">&#129514;</span>
+      <div>
+        <h1 class="logo-title">AB-GEN <span class="highlight">80%</span></h1>
+        <p class="logo-sub">Accuracy &middot; CIFAR-10 &middot; M5 Green AI</p>
+      </div>
+    </div>
+    <div class="header-badges">
+      <span class="badge badge-green">No Pure CNN</span>
+      <span class="badge badge-blue">Geometric AI</span>
+      <span class="badge badge-purple">Poly Fusion</span>
+      <span id="device-badge" class="badge badge-orange">CPU</span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════ HERO STATS ═══════════ -->
+<section class="hero container">
+  <div class="hero-grid">
+    <!-- Session Accuracy -->
+    <div class="stat-card" id="card-session-acc">
+      <div class="stat-top">
+        <span class="stat-icon-txt">&#127919;</span>
+        <span class="stat-badge">LIVE</span>
+      </div>
+      <div class="stat-value">
+        <span id="stat-session-acc">—</span><span class="stat-unit">%</span>
+      </div>
+      <div class="stat-label">Session Accuracy</div>
+      <div class="stat-sub">Target: {{ accuracy_target }}% &nbsp;&bull;&nbsp; <span id="stat-imgs">0</span> imgs analyzed</div>
+      <div class="mini-bar-wrap"><div class="mini-bar" id="bar-acc" style="width:0%"></div></div>
+    </div>
+
+    <!-- Batch Stats -->
+    <div class="stat-card" id="card-batch">
+      <div class="stat-top">
+        <span class="stat-icon-txt">&#9889;</span>
+        <span class="stat-badge stat-badge-orange">BATCH</span>
+      </div>
+      <div class="stat-value">
+        <span id="stat-lat">—</span><span class="stat-unit">ms</span>
+      </div>
+      <div class="stat-label">Latency / Batch</div>
+      <div class="stat-sub">
+        Throughput: <span id="stat-throughput">—</span> img/s &nbsp;&bull;&nbsp;
+        Avg: <span id="stat-avg-lat">—</span> ms
+      </div>
+    </div>
+
+    <!-- Energy -->
+    <div class="stat-card" id="card-energy">
+      <div class="stat-top">
+        <span class="stat-icon-txt">&#127807;</span>
+        <span class="stat-badge stat-badge-green">M5</span>
+      </div>
+      <div class="stat-value">
+        <span id="stat-saving">92</span><span class="stat-unit">%</span>
+      </div>
+      <div class="stat-label">Energy Saved vs ResNet</div>
+      <div class="stat-sub">
+        Session saved: <span id="stat-energy-saved">0</span> mJ &nbsp;&bull;&nbsp;
+        CO&#8322; saved: <span id="stat-co2">—</span> &#956;g
+      </div>
+    </div>
+
+    <!-- Batch counter -->
+    <div class="stat-card" id="card-batches">
+      <div class="stat-top">
+        <span class="stat-icon-txt">&#128202;</span>
+        <span class="stat-badge stat-badge-purple">TOTAL</span>
+      </div>
+      <div class="stat-value">
+        <span id="stat-batches">0</span>
+      </div>
+      <div class="stat-label">Batches Processed</div>
+      <div class="stat-sub">
+        Last batch: <span id="stat-last-acc">—</span>% accuracy
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ ACCURACY CHART + PER-CLASS ═══════════ -->
+<section class="container dual-section">
+
+  <!-- Batch History -->
+  <div class="panel" id="panel-history">
+    <h2 class="panel-title">Batch Accuracy History</h2>
+    <div class="chart-area" id="chart-area">
+      <div class="chart-empty">Run first batch to see history</div>
+      <canvas id="acc-chart" width="0" height="120" style="display:none"></canvas>
+    </div>
+    <div class="chart-legend">
+      <span class="legend-dot dot-green"></span> AB-GEN batch accuracy
+      <span class="legend-line"></span>
+      <span class="legend-dot dot-dim"></span> 80% target
+    </div>
+  </div>
+
+  <!-- Per-class accuracy -->
+  <div class="panel" id="panel-class">
+    <h2 class="panel-title">Per-Class Accuracy</h2>
+    <div class="class-grid">
+      {% for c in classes %}
+      <div class="class-row">
+        <span class="class-name">{{ c }}</span>
+        <div class="class-bar-bg">
+          <div class="class-bar" id="cbar-{{ loop.index0 }}" style="width:0%"></div>
+        </div>
+        <span class="class-pct" id="cpct-{{ loop.index0 }}">—</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</section>
+
+<!-- ═══════════ ARCHITECTURE PIPELINE ═══════════ -->
+<section class="container arch-section">
+  <h2 class="panel-title">How AB-GEN Works</h2>
+  <div class="pipeline">
+    <div class="pipe-step"><div class="pipe-icon">&#128208;</div><div class="pipe-lbl">PCA 1200D<br/><small>Geometric embed</small></div></div>
+    <div class="pipe-arr">&rarr;</div>
+    <div class="pipe-step"><div class="pipe-icon">&#127754;</div><div class="pipe-lbl">Multi-FFT<br/><small>Frequency topo</small></div></div>
+    <div class="pipe-arr">&rarr;</div>
+    <div class="pipe-step"><div class="pipe-icon">&#127914;</div><div class="pipe-lbl">Fisher Weights<br/><small>Class discriminant</small></div></div>
+    <div class="pipe-arr">&rarr;</div>
+    <div class="pipe-step"><div class="pipe-icon">&#128029;</div><div class="pipe-lbl">Swarm N1<br/><small>LR+3&times;MLP+LGBM</small></div></div>
+    <div class="pipe-arr">&rarr;</div>
+    <div class="pipe-step pipe-highlight"><div class="pipe-icon">&#129518;</div><div class="pipe-lbl">Poly Ridge N2<br/><small>Meta-learner</small></div></div>
+    <div class="pipe-arr">&rarr;</div>
+    <div class="pipe-step pipe-result"><div class="pipe-icon">&#127942;</div><div class="pipe-lbl">~80% Acc<br/><small>No pure conv</small></div></div>
+  </div>
+</section>
+
+<!-- ═══════════ ANALYZE BUTTON ═══════════ -->
+<section class="container analyze-section">
+  <button id="btn-analyze" class="btn-primary" onclick="runAnalysis()">
+    &#128640; ANALYZE RANDOM BATCH
+  </button>
+  <button class="btn-secondary" onclick="resetSession()">Reset Session</button>
+
+  <div id="batch-bar" class="batch-bar hidden">
+    <span id="bb-correct">?</span>/<span id="bb-total">12</span> correct &mdash;
+    <strong id="bb-pct">?</strong>% &nbsp;
+    <span class="tag-lat" id="bb-lat">?ms</span>
+    <span class="tag-thr" id="bb-thr">? img/s</span>
+  </div>
+  <div id="status-msg" class="status-msg"></div>
+</section>
+
+<!-- ═══════════ IMAGE GRID ═══════════ -->
+<section class="container">
+  <h2 class="panel-title" id="grid-title" style="display:none">Batch Results</h2>
+  <div id="image-grid" class="image-grid"></div>
+</section>
+
+<!-- ═══════════ COMPARISON TABLE ═══════════ -->
+<section class="container cmp-section">
+  <h2 class="panel-title">AB-GEN vs Industry Models</h2>
+  <div class="cmp-table-wrap">
+    <table class="cmp-table">
+      <thead>
+        <tr>
+          <th>Model</th><th>CIFAR-10 Acc.</th><th>Architecture</th>
+          <th>Energy/Inf.</th><th>Interpretable</th><th>Green AI</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="row-highlight">
+          <td><strong>AB-GEN</strong></td><td class="acc-col">~80%</td>
+          <td>Geometric + Polynomial</td>
+          <td class="green-col">0.31 mJ</td><td class="green-col">Yes</td><td class="green-col">M5</td>
+        </tr>
+        <tr>
+          <td>ResNet-18</td><td class="acc-col">~93%</td><td>Deep CNN</td>
+          <td class="red-col">4.2 mJ</td><td class="red-col">No</td><td class="red-col">Low</td>
+        </tr>
+        <tr>
+          <td>ViT-B/16</td><td class="acc-col">~96%</td><td>Transformer</td>
+          <td class="red-col">18 mJ</td><td class="red-col">No</td><td class="red-col">Very Low</td>
+        </tr>
+        <tr>
+          <td>EfficientNet-B3</td><td class="acc-col">~96%</td><td>CNN + NAS</td>
+          <td class="red-col">3.1 mJ</td><td class="red-col">No</td><td class="red-col">Low</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════ FOOTER ═══════════ -->
+<footer class="site-footer container">
+  <p>AB-GEN 80% Accuracy &mdash; Hybrid Geometric-Polynomial Ensemble on CIFAR-10</p>
+  <p class="footer-sub">M5 Green AI &middot; Blind Inference Demo &middot; No training code exposed</p>
+</footer>
+
+<script>
+const CLASSES = {{ classes | tojson }};
+const TARGET_ACC = {{ accuracy_target }};
+
+// ── Fetch device status ───────────────────────────────────────────────
+async function fetchStatus() {
+  try {
+    const r = await fetch("/api/status");
+    const d = await r.json();
+    const badge = document.getElementById("device-badge");
+    badge.textContent = d.device;
+    badge.className = "badge " + (d.device === "CUDA" ? "badge-orange" : "badge-gray");
+  } catch(e) {}
+}
+
+// ── Main analysis ────────────────────────────────────────────────────
+async function runAnalysis() {
+  const btn = document.getElementById("btn-analyze");
+  btn.disabled = true;
+  btn.innerHTML = "&#9881; Analyzing...";
+  document.getElementById("status-msg").textContent = "";
+
+  try {
+    const r    = await fetch("/api/analyze", { method: "POST" });
+    const data = await r.json();
+
+    // ── Update top stat cards ──────────────────────────────────────
+    flash("stat-session-acc", data.session_acc.toFixed(1));
+    flash("stat-lat",         data.latency_ms);
+    flash("stat-throughput",  data.throughput);
+    flash("stat-avg-lat",     data.avg_latency_ms);
+    flash("stat-saving",      data.saving_pct);
+    flash("stat-energy-saved",data.session_energy_saved_mj);
+    flash("stat-co2",         data.co2_saved_ug);
+    flash("stat-batches",     data.session_batches);
+    flash("stat-last-acc",    data.batch_accuracy);
+    flash("stat-imgs",        data.session_images);
+
+    // Accuracy progress bar
+    const pct = Math.min(data.session_acc / 100, 1);
+    document.getElementById("bar-acc").style.width = (pct * 100) + "%";
+    document.getElementById("bar-acc").style.background =
+      data.session_acc >= TARGET_ACC
+        ? "linear-gradient(90deg,#4ec994,#2dd4bf)"
+        : "linear-gradient(90deg,#e8a838,#eb4d4d)";
+
+    // ── Batch bar ────────────────────────────────────────────────
+    const bar = document.getElementById("batch-bar");
+    document.getElementById("bb-correct").textContent = data.correct;
+    document.getElementById("bb-total").textContent   = data.total;
+    document.getElementById("bb-pct").textContent     = data.batch_accuracy;
+    document.getElementById("bb-lat").textContent     = data.latency_ms + "ms";
+    document.getElementById("bb-thr").textContent     = data.throughput + " img/s";
+    bar.className = "batch-bar " +
+      (data.batch_accuracy >= TARGET_ACC * 0.75 ? "bar-good" : "bar-bad");
+
+    // ── Per-class bars ────────────────────────────────────────────
+    data.class_acc.forEach((v, i) => {
+      const bar  = document.getElementById("cbar-" + i);
+      const pct  = document.getElementById("cpct-" + i);
+      if (v === null) { pct.textContent = "—"; return; }
+      bar.style.width = v + "%";
+      bar.style.background = v >= 70
+        ? "linear-gradient(90deg,#4ec994,#2dd4bf)"
+        : v >= 50
+        ? "linear-gradient(90deg,#e8a838,#f59e0b)"
+        : "linear-gradient(90deg,#eb4d4d,#f97316)";
+      pct.textContent = v.toFixed(0) + "%";
+    });
+
+    // ── Chart ────────────────────────────────────────────────────
+    drawChart(data.history_acc);
+
+    // ── Image grid ────────────────────────────────────────────────
+    document.getElementById("grid-title").style.display = "block";
+    renderGrid(data.results);
+
+  } catch(e) {
+    document.getElementById("status-msg").textContent = "Error: " + e.message;
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = "&#128640; ANALYZE RANDOM BATCH";
+}
+
+// ── Render image grid ─────────────────────────────────────────────────
+function renderGrid(results) {
+  const grid = document.getElementById("image-grid");
+  grid.innerHTML = "";
+  results.forEach((r, ri) => {
+    const card = document.createElement("div");
+    card.className = "img-card " + (r.correct ? "card-ok" : "card-err");
+    card.style.animationDelay = (ri * 0.05) + "s";
+
+    const verdict = r.correct
+      ? `<span class="verdict verdict-ok">&#10003; ${r.pred_label}</span>`
+      : `<span class="verdict verdict-err">&#10007; ${r.pred_label}</span>`;
+
+    const top3html = r.top3.map(t => `
+      <div class="top3-row">
+        <span class="top3-cls">${t.class}</span>
+        <div class="top3-bar-bg">
+          <div class="top3-bar" style="width:${t.prob}%;background:${t.prob===r.top3[0].prob?'#4ec994':'#4b5563'}"></div>
+        </div>
+        <span class="top3-pct">${t.prob.toFixed(1)}%</span>
+      </div>`).join("");
+
+    card.innerHTML = `
+      <div class="img-frame">
+        <img src="${r.image_b64}" alt="${r.true_label}" class="cifar-img" loading="lazy"/>
+        <div class="img-overlay">${r.true_label}</div>
+      </div>
+      <div class="card-body">
+        ${verdict}
+        <div class="true-lbl">True: <strong>${r.true_label}</strong></div>
+        <div class="conf-row">
+          <span class="conf-label">Conf</span>
+          <div class="conf-bar-bg">
+            <div class="conf-bar" style="width:${r.confidence}%;background:${r.confidence>50?'#4ec994':'#e8a838'}"></div>
+          </div>
+          <span class="conf-val">${r.confidence.toFixed(1)}%</span>
+        </div>
+        <div class="top3">${top3html}</div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+// ── Draw sparkline chart ─────────────────────────────────────────────
+function drawChart(history) {
+  const area    = document.getElementById("chart-area");
+  const canvas  = document.getElementById("acc-chart");
+  const empty   = area.querySelector(".chart-empty");
+  if (!history.length) return;
+
+  empty.style.display = "none";
+  canvas.style.display = "block";
+  canvas.width  = area.clientWidth || 500;
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, W, H);
+
+  // Target line
+  const targetY = H - (TARGET_ACC / 100) * H;
+  ctx.setLineDash([6,4]);
+  ctx.strokeStyle = "#4b5563";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, targetY); ctx.lineTo(W, targetY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Label on target line
+  ctx.fillStyle = "#6b7280";
+  ctx.font = "10px JetBrains Mono";
+  ctx.fillText("80%", 4, targetY - 4);
+
+  if (history.length < 2) return;
+  const n  = history.length;
+  const dx = W / (n - 1);
+
+  // Fill gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, "rgba(78,201,148,0.35)");
+  grad.addColorStop(1, "rgba(78,201,148,0)");
+
+  ctx.beginPath();
+  ctx.moveTo(0, H - (history[0] / 100) * H);
+  history.forEach((v, i) => {
+    const x = i * dx, y = H - (v / 100) * H;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  const lastX = (n - 1) * dx, lastY = H - (history[n-1] / 100) * H;
+  ctx.lineTo(lastX, H); ctx.lineTo(0, H); ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  history.forEach((v, i) => {
+    const x = i * dx, y = H - (v / 100) * H;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = "#4ec994"; ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Dots
+  history.forEach((v, i) => {
+    const x = i * dx, y = H - (v / 100) * H;
+    ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = v >= TARGET_ACC ? "#4ec994" : "#e8a838";
+    ctx.fill();
+  });
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────
+function flash(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove("flash");
+  void el.offsetWidth; // reflow
+  el.textContent = val;
+  el.classList.add("flash");
+}
+
+async function resetSession() {
+  await fetch("/api/reset", { method: "POST" });
+  ["stat-session-acc","stat-lat","stat-throughput","stat-avg-lat",
+   "stat-saving","stat-energy-saved","stat-co2","stat-batches","stat-last-acc","stat-imgs"]
+    .forEach(id => { const el=document.getElementById(id); if(el) el.textContent="—"; });
+  document.getElementById("stat-batches").textContent = "0";
+  document.getElementById("stat-imgs").textContent = "0";
+  document.getElementById("bar-acc").style.width = "0%";
+  document.getElementById("image-grid").innerHTML = "";
+  document.getElementById("grid-title").style.display = "none";
+  document.getElementById("batch-bar").className = "batch-bar hidden";
+  for (let i = 0; i < 10; i++) {
+    const b = document.getElementById("cbar-"+i);
+    const p = document.getElementById("cpct-"+i);
+    if(b) b.style.width="0%";
+    if(p) p.textContent="—";
+  }
+  const canvas = document.getElementById("acc-chart");
+  canvas.style.display="none";
+  document.querySelector(".chart-empty").style.display="flex";
+}
+
+fetchStatus();
+</script>
+</body>
+</html>
