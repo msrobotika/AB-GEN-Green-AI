@@ -1,163 +1,105 @@
-# AB-GEN 80% Accuracy — CIFAR-10 Live Demo
+# AB-GEN — Geometric-Polynomial Vision Research
 
-> **Hybrid Geometric-Polynomial Ensemble — M5 Green AI**  
-> Achieves **~80% accuracy on CIFAR-10** with **no pure convolutional layers**.
+> **Hybrid geometric + spectral + polynomial ensemble for image classification**
 
-### 🎥 Watch the 3-minute Live Demo:
+AB-GEN is an experimental computer-vision architecture built around dimensional reduction, Fisher weighting, multi-scale spectral features, geometric class structure, an N1 learner ensemble and an N2 polynomial meta-learner.
+
+The project is currently undergoing a reproducibility and engineering audit. Public claims are intentionally separated into **reported** and **reproduced/validated** results.
+
+## Validation status
+
+- **CIFAR-10 V24 Slow Burn:** internal project records report **80.14% accuracy** and a recorded runtime of approximately **420 min**.
+- **CIFAR-10 V23 M4 Purist:** internal project records report **78.05% accuracy**.
+- **MNIST Universal V24:** internal project records report **97.79% accuracy**.
+- Full reproduction from the original training source and artifacts is in progress.
+- Previously published Green AI energy figures are being re-benchmarked under a controlled, reproducible measurement protocol.
+
+See **[MILESTONES.md](MILESTONES.md)** for the evidence status, validation gates and roadmap.
+
+### 🎥 Live demo
 [![AB-GEN Live Demo](https://img.youtube.com/vi/5gtssh9VvI4/maxresdefault.jpg)](https://youtu.be/5gtssh9VvI4)
 
 ---
 
-## What is AB-GEN?
-
-AB-GEN is a research-grade image classification system built on pure mathematical geometry and polynomial meta-learning — **no convolutions, no attention blocks**.
+## Architecture
 
 | Stage | Technique | Purpose |
-|-------|-----------|---------|
-| PCA 1200D | Geometric embedding | Dimension reduction with spectral structure |
-| Multi-scale FFT | 3-scale frequency analysis | Spectral topology extraction |
-| Fisher Weighting | Class-discriminant scaling | Emphasises informative PCA dimensions |
-| Swarm N1 | LR + 3xMLP + LightGBM ensemble | Diverse non-linear learner pool |
-| Poly Ridge N2 | Degree-2 polynomial meta-learner | Cross-learner fusion via interaction terms |
+|---|---|---|
+| PCA 1200D | Geometric embedding | Dimensional reduction |
+| Fisher Weighting | Class-discriminant scaling | Emphasise informative PCA dimensions |
+| Multi-scale FFT | Spectral analysis | Frequency-domain structure |
+| Geometric features | Centroid similarities, topology, higher-order terms | Class-structure representation |
+| Swarm N1 | LR + MLPs + LightGBM ensemble | Diverse learner pool |
+| Poly Ridge N2 | Degree-2 polynomial meta-learner | Cross-learner interaction and fusion |
 
-**Result: ~80% accuracy on CIFAR-10** at ~92% lower energy than ResNet-18.
-
----
-
-## M5 Green AI Metrics
-
-| Metric | AB-GEN | ResNet-18 | ViT-B/16 |
-|--------|--------|-----------|----------|
-| Energy / inference | 0.31 mJ | 4.2 mJ | 18 mJ |
-| CO2 / 1M inferences | ~0.020 g | ~0.275 g | ~1.18 g |
-| Energy vs baseline | **-92%** | ref | -4.3x worse |
+The public inference engine operates on PCA-projected inputs and reconstructs the geometric/spectral feature path used by the deployed model. A complete raw-image-to-prediction reproducible pipeline is one of the current engineering goals.
 
 ---
 
-## Quick Start (Development)
+## Current audit priorities
+
+1. Recover and freeze **V24 Slow Burn** as the golden baseline.
+2. Verify train/validation/test separation and rule out leakage.
+3. Reproduce the reported **80.14% CIFAR-10** result from clean source.
+4. Persist the exact preprocessing/PCA artifacts required for standalone inference.
+5. Add deterministic tests and CI.
+6. Build a raw-image end-to-end inference path.
+7. Evaluate calibration using ECE, Brier score, NLL and reliability diagrams.
+8. Measure energy on identical hardware and inference boundaries against baselines.
+9. Package reproducible releases with environment locks, hashes and benchmark metadata.
+
+---
+
+## Green AI benchmark status
+
+Earlier project material reports approximately **0.31 mJ/inference** for AB-GEN and a large reduction relative to a ResNet-18 reference. These values are retained as **historical/reported project figures**, not as independently reproduced measurements.
+
+The validation benchmark will separate:
+- model-only inference;
+- preprocessing + model end-to-end inference;
+- CPU and GPU execution;
+- latency and throughput;
+- joules per image;
+- RAM/VRAM use;
+- accuracy under the same evaluation protocol.
+
+Carbon figures will only be derived after measured energy is established and the grid-intensity source is explicitly documented.
+
+---
+
+## Demo quick start
 
 ```bash
-# 1. Install dependencies
 pip install -r requirements_demo.txt
-
-# 2. Pack the model (run ONCE from the parent folder)
-python AB-GEN_GITHUB_DEMO/export_bundle.py
-
-# 3. Start demo server
-cd AB-GEN_GITHUB_DEMO
-python app.py           # dev server
-# or
-run_demo.bat            # Windows one-click
-
-# Open http://localhost:5000
+python app.py
 ```
+
+The demo requires the model bundle and sample-data artifacts used by the inference engine. Those large artifacts are not currently distributed in the public repository, so a fresh clone is **not yet a complete reproducible package**.
+
+Production deployment files are included (`serve.py`, Docker and Compose), but Docker reproducibility remains part of the active engineering audit because the current build depends on runtime/training artifacts outside the public repository.
 
 ---
 
-## Production Deployment
+## Repository engineering
 
-### Option A — Waitress (Windows / Linux, no Docker)
-
-```bash
-pip install -r requirements_prod.txt
-python serve.py
-# Or:
-run_production.bat
-```
-
-Environment variables:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ABGEN_HOST` | `0.0.0.0` | Bind address |
-| `ABGEN_PORT` | `5000` | Port |
-| `ABGEN_THREADS` | `4` | WSGI worker threads |
-
-### Option B — Docker (recommended for servers)
-
-```bash
-# 1. Build image
-docker build -t abgen-demo .
-
-# 2. Run container
-docker run -d --name abgen -p 5000:5000 abgen-demo
-
-# With GPU (requires nvidia-container-toolkit):
-docker run -d --name abgen --gpus all -p 5000:5000 abgen-demo
-```
-
-### Option C — Docker Compose
-
-```bash
-docker compose up -d
-docker compose logs -f       # monitor
-docker compose down          # stop
-```
-
-### Option D — Cloud deployment
-
-The container can be deployed to any cloud provider that supports Docker:
-
-| Platform | Command |
-|----------|---------|
-| **Railway** | `railway up` |
-| **Render** | Connect GitHub repo → Docker |
-| **Google Cloud Run** | `gcloud run deploy --image abgen-demo` |
-| **AWS ECS / Fargate** | Push to ECR → ECS task |
-
-> **Note**: The `abgen_bundle.pkl` file (~400 MB) needs to be baked into the Docker image or mounted as a volume. For cloud deployments, use a persistent volume or object storage (S3/GCS) and download at startup.
+- `engine.py` — blind inference engine
+- `app.py` — Flask demo/API
+- `serve.py` — production WSGI entry point
+- `templates/` and `static/` — dashboard UI
+- `tests/` — regression tests being introduced during the audit
+- `AUDIT_NOTES.md` — initial technical audit findings
+- `MILESTONES.md` — evidence-first progress tracker
 
 ---
 
-## File Structure
+## Research direction
 
-```
-AB-GEN_GITHUB_DEMO/
-│
-├── engine.py              ← Blind inference engine (no training code)
-├── app.py                 ← Flask application + API endpoints
-├── serve.py               ← Production WSGI entry point (Waitress/Gunicorn)
-│
-├── templates/
-│   └── index.html         ← Premium Darcula dashboard UI
-├── static/
-│   └── style.css          ← Glassmorphism + animations
-│
-├── export_bundle.py       ← Run once to create abgen_bundle.pkl
-│
-├── requirements_demo.txt  ← Dev dependencies
-├── requirements_prod.txt  ← Production dependencies (includes waitress)
-│
-├── run_demo.bat           ← Windows: dev server one-click
-├── run_production.bat     ← Windows: production server (Waitress)
-│
-├── Dockerfile             ← Multi-stage Docker build
-├── docker-compose.yml     ← Docker Compose for easy deployment
-│
-├── .gitignore
-└── README.md
-│
-│ (generated by export_bundle.py)
-├── abgen_bundle.pkl       ← Packed model + geometry constants (~400 MB)
-└── sample_data.pkl        ← 200 CIFAR-10 test images for demo
-```
+AB-GEN is not currently positioned as a replacement for state-of-the-art CNNs or Vision Transformers on raw accuracy alone. The research question is different:
+
+> **How far can a geometric/spectral ensemble architecture go in computer vision while reducing computational cost and retaining a more inspectable decision pipeline?**
+
+The next meaningful milestone is not a marketing number; it is a third party being able to reproduce the same result from a clean environment.
 
 ---
 
-## Architecture vs Industry
-
-| Property | **AB-GEN** | ResNet-18 | ViT-B/16 |
-|----------|-----------|-----------|----------|
-| CIFAR-10 Acc. | ~80% | ~93% | ~96% |
-| Architecture | Geometric + Polynomial | Deep CNN | Transformer |
-| Energy / inf. | **0.31 mJ** | 4.2 mJ | 18 mJ |
-| Interpretable | **Yes** | No | No |
-| Training data needed | Low | Medium | Very High |
-| Custom math | FFT + Fisher + Chaos | Gradient only | Attention only |
-| Green AI | **M5** | Low | Very Low |
-
-> AB-GEN trades ~13% accuracy for **92% less energy** — a compelling trade-off for edge, embedded, and Green AI deployments.
-
----
-
-*Built with Python, PyTorch, LightGBM, Flask, Waitress — pure mathematical intuition.*
+Built with Python, PyTorch, LightGBM, scikit-learn and Flask.
