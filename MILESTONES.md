@@ -14,6 +14,12 @@ This file tracks public milestones for AB-GEN using an evidence-first standard. 
 - Added a regression test covering the reset behavior.
 - Change merged through PR #3.
 
+### 2026-09-20 — Public research portal launched
+- Published the official **MS Robotika — AB-GEN Research** site.
+- Added public pages for architecture, research methodology, milestones/benchmarks and project background.
+- Published the first technical note: **“AB-GEN enters its reproducibility phase.”**
+- Public site: https://msrobotikaabgenresearch.wordpress.com/
+
 ## Results currently under validation
 
 ### CIFAR-10 — AB-GEN V24 Slow Burn
