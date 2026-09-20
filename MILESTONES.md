@@ -14,11 +14,36 @@ This file tracks public milestones for AB-GEN using an evidence-first standard. 
 - Added a regression test covering the reset behavior.
 - Change merged through PR #3.
 
+### 2026-09-20 — Automated regression CI established
+- Added GitHub Actions regression CI for pushes and pull requests to `main`.
+- Corrected the missing Pillow dependency discovered by clean-install validation.
+- Moved CI to CPU-only PyTorch wheels to avoid unnecessary CUDA downloads during CPU regression testing.
+- CI is now used as a merge gate for repository hardening work.
+
 ### 2026-09-20 — Public research portal launched
 - Published the official **MS Robotika — AB-GEN Research** site.
 - Added public pages for architecture, research methodology, milestones/benchmarks and project background.
 - Published the first technical note: **“AB-GEN enters its reproducibility phase.”**
 - Public site: https://msrobotikaabgenresearch.wordpress.com/
+
+### 2026-09-20 — Public demo evidence semantics hardened
+- Separated live session measurements from reported V24 accuracy and historical energy references.
+- Renamed probability/confidence presentation to normalized decision-score terminology pending calibration.
+- Added explicit evidence-status metadata to the API while preserving temporary compatibility aliases.
+- Added regression coverage for public wording and API evidence semantics.
+
+### 2026-09-20 — Runtime and serialized-artifact security boundary established
+- Added `SECURITY.md` warning that pickle/joblib model bundles are trusted-code artifacts and must never be loaded from unverifiable sources.
+- Windows launchers now fail safely when required runtime artifacts are absent rather than guessing private parent-folder layouts.
+- Docker no longer copies private artifacts or files outside the build context.
+- The public Docker image contains application code only; runtime model/data/compatibility artifacts are mounted read-only.
+- Added `.gitignore` protection for private runtime artifacts and tests covering deployment preflight behavior.
+
+### 2026-09-20 — Artifact manifest integrity tooling added
+- Added `tools/artifact_manifest.py` to create and verify SHA-256 manifests for recovered/runtime-critical files.
+- The manifest records filenames, byte sizes, hashes and environment/source metadata without publishing absolute workstation paths.
+- Added tests for round-trip verification, tamper detection and duplicate-label rejection.
+- Integrated the tooling into the reproducibility protocol so recovered V24 artifacts can be frozen before modification.
 
 ## Results currently under validation
 
@@ -75,9 +100,12 @@ A Medical/XAI milestone should additionally include:
 ## Roadmap
 
 - Recover and freeze V24 Slow Burn as the golden baseline.
+- Generate the first immutable V24 artifact manifest and preserve the originals unchanged.
+- Audit train/validation/test separation and potential leakage.
 - Reproduce the 80.14% CIFAR-10 result from clean source.
+- Freeze the dependency environment for the reproduced baseline.
 - Build a complete raw-image inference path.
-- Add deterministic tests and CI.
+- Expand deterministic tests and CI to model/preprocessing fixtures and container smoke tests.
 - Create a measured Green AI benchmark suite.
 - Add calibration and reliability evaluation.
 - Develop class-conditioned AB-GEN attribution maps.
