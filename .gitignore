@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local configuration / secrets
+.env
+.env.*
+
+# AB-GEN serialized runtime artifacts
+abgen_bundle.pkl
+sample_data.pkl
+*.joblib
+
+# Keep only documentation in the local artifact mount directory
+artifacts/*
+!artifacts/README.md
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
