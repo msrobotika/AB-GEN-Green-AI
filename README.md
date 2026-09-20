@@ -16,7 +16,12 @@ The project is currently undergoing a reproducibility and engineering audit. Pub
 - Full reproduction from the original training source and artifacts is in progress.
 - Previously published Green AI energy figures are being re-benchmarked under a controlled, reproducible measurement protocol.
 
-See **[MILESTONES.md](MILESTONES.md)** for the evidence status, validation gates and roadmap.
+Evidence and release gates:
+
+- **[MILESTONES.md](MILESTONES.md)** — public evidence status and roadmap.
+- **[REPRODUCIBILITY.md](REPRODUCIBILITY.md)** — minimum protocol for promoting a result from reported to reproduced/validated.
+- **[ARTIFACT_MANIFEST_TEMPLATE.md](ARTIFACT_MANIFEST_TEMPLATE.md)** — source/artifact/environment/hash manifest template.
+- **[RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)** — pre-publication gate for releases, benchmark claims and public communications.
 
 ### 🎥 Live demo
 [![AB-GEN Live Demo](https://img.youtube.com/vi/5gtssh9VvI4/maxresdefault.jpg)](https://youtu.be/5gtssh9VvI4)
@@ -44,7 +49,7 @@ The public inference engine operates on PCA-projected inputs and reconstructs th
 2. Verify train/validation/test separation and rule out leakage.
 3. Reproduce the reported **80.14% CIFAR-10** result from clean source.
 4. Persist the exact preprocessing/PCA artifacts required for standalone inference.
-5. Add deterministic tests and CI.
+5. Extend deterministic tests and CI beyond the first regression test.
 6. Build a raw-image end-to-end inference path.
 7. Evaluate calibration using ECE, Brier score, NLL and reliability diagrams.
 8. Measure energy on identical hardware and inference boundaries against baselines.
@@ -88,9 +93,13 @@ Production deployment files are included (`serve.py`, Docker and Compose), but D
 - `app.py` — Flask demo/API
 - `serve.py` — production WSGI entry point
 - `templates/` and `static/` — dashboard UI
-- `tests/` — regression tests being introduced during the audit
+- `tests/` — regression tests being expanded during the audit
+- `.github/workflows/ci.yml` — automated regression CI on pushes and pull requests to `main`
 - `AUDIT_NOTES.md` — initial technical audit findings
 - `MILESTONES.md` — evidence-first progress tracker
+- `REPRODUCIBILITY.md` — reproducibility and leakage protocol
+- `ARTIFACT_MANIFEST_TEMPLATE.md` — immutable artifact/evidence manifest template
+- `RELEASE_CHECKLIST.md` — release and public-claim gate
 
 ---
 
