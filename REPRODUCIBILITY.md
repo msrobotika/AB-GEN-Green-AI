@@ -64,6 +64,24 @@ Every runtime-critical artifact must appear in an artifact manifest with:
 
 Persist exact preprocessing artifacts whenever possible rather than refitting them at inference time.
 
+### Hash-manifest tooling
+
+The repository includes `tools/artifact_manifest.py` so recovered files can be fingerprinted immediately without recording absolute workstation paths.
+
+Example creation command:
+
+```bash
+python tools/artifact_manifest.py create --artifact model_bundle=abgen_bundle.pkl --artifact sample_data=sample_data.pkl --artifact training_module=training_module.py --output v24-artifacts.json
+```
+
+Verification command:
+
+```bash
+python tools/artifact_manifest.py verify --manifest v24-artifacts.json --artifact model_bundle=abgen_bundle.pkl --artifact sample_data=sample_data.pkl --artifact training_module=training_module.py
+```
+
+A verification failure means the artifact set must not be treated as the same frozen baseline. The manifest records SHA-256, filename and size plus environment/source metadata, but a hash file stored beside untrusted artifacts does not by itself establish provenance. A validated release must anchor the accepted manifest to an immutable trusted release/commit and apply the security rules in `SECURITY.md`.
+
 ## 6. Evaluation package
 
 At minimum, a classification baseline should report:
