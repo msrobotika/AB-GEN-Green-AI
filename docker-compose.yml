@@ -1,24 +1,22 @@
-# AB-GEN 80% Accuracy — Docker Compose for Production
+# AB-GEN Research Demo — Docker Compose
+# Runtime artifacts are deliberately kept outside the image and mounted read-only.
 
 services:
   abgen:
     build: .
     container_name: abgen_demo
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "5000:5000"
     environment:
       - ABGEN_HOST=0.0.0.0
       - ABGEN_PORT=5000
       - ABGEN_THREADS=4
-    # GPU support (optional — requires nvidia-container-toolkit)
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+      - ABGEN_BUNDLE_PATH=/artifacts/abgen_bundle.pkl
+      - ABGEN_SAMPLE_DATA_PATH=/artifacts/sample_data.pkl
+      - ABGEN_TRAINING_MODULE_PATH=/artifacts/training_module.py
+    volumes:
+      - ./artifacts:/artifacts:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/status')"]
       interval: 30s
@@ -26,10 +24,5 @@ services:
       retries: 3
       start_period: 90s
 
-  # Optional: nginx reverse proxy for HTTPS
-  # nginx:
-  #   image: nginx:alpine
-  #   ports: ["80:80", "443:443"]
-  #   volumes:
-  #     - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-  #   depends_on: [abgen]
+    # GPU support is intentionally not implicit. A validated GPU benchmark/runtime
+    # should document its image, drivers and container-toolkit configuration.

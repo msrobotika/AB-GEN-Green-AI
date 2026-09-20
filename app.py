@@ -5,6 +5,7 @@ The demo exposes live session/inference metrics separately from reported
 experimental results and historical energy reference values.
 """
 
+import os
 import io
 import random
 import pickle
@@ -15,9 +16,10 @@ from PIL import Image
 from flask import Flask, render_template, jsonify
 from engine import ABGenEngine, CIFAR10_CLASSES
 
-# ── Configuration ─────────────────────────────────────────────────────
-BUNDLE_PATH = "abgen_bundle.pkl"
-SAMPLE_DATA_PATH = "sample_data.pkl"
+# Runtime artifacts can be supplied explicitly (for example by a read-only
+# Docker volume) while preserving the historical local-file defaults.
+BUNDLE_PATH = os.environ.get("ABGEN_BUNDLE_PATH", "abgen_bundle.pkl")
+SAMPLE_DATA_PATH = os.environ.get("ABGEN_SAMPLE_DATA_PATH", "sample_data.pkl")
 REFERENCE_ACCURACY_THRESHOLD = 80.0
 REPORTED_V24_ACCURACY = 80.14
 REPORTED_V24_VERSION = "V24 Slow Burn"
@@ -38,7 +40,7 @@ app = Flask(__name__)
 engine = None
 sample_data = None
 
-# ── Session stats (in-memory) ─────────────────────────────────────────
+# Session stats (in-memory)
 session_stats = {
     "total_images": 0,
     "total_correct": 0,
@@ -63,9 +65,9 @@ def img_to_b64(arr_rgb_uint8: np.ndarray, scale: int = 4) -> str:
 
 def load_resources():
     global engine, sample_data
-    print("[SERVER] Loading AB-GEN engine...")
+    print(f"[SERVER] Loading AB-GEN engine bundle: {BUNDLE_PATH}")
     engine = ABGenEngine(BUNDLE_PATH)
-    print("[SERVER] Loading sample data...")
+    print(f"[SERVER] Loading cached sample data: {SAMPLE_DATA_PATH}")
     with open(SAMPLE_DATA_PATH, "rb") as f:
         sample_data = pickle.load(f)
     print(f"[SERVER] {len(sample_data['y'])} cached test samples ready.")
