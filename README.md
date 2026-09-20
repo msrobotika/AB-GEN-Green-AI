@@ -22,6 +22,7 @@ Evidence and release gates:
 - **[REPRODUCIBILITY.md](REPRODUCIBILITY.md)** — minimum protocol for promoting a result from reported to reproduced/validated.
 - **[ARTIFACT_MANIFEST_TEMPLATE.md](ARTIFACT_MANIFEST_TEMPLATE.md)** — source/artifact/environment/hash manifest template.
 - **[RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)** — pre-publication gate for releases, benchmark claims and public communications.
+- **[SECURITY.md](SECURITY.md)** — trusted-artifact and serialized-model security boundary.
 
 ### 🎥 Live demo
 [![AB-GEN Live Demo](https://img.youtube.com/vi/5gtssh9VvI4/maxresdefault.jpg)](https://youtu.be/5gtssh9VvI4)
@@ -81,17 +82,40 @@ pip install -r requirements_demo.txt
 python app.py
 ```
 
-The demo requires the model bundle and sample-data artifacts used by the inference engine. Those large artifacts are not currently distributed in the public repository, so a fresh clone is **not yet a complete reproducible package**.
+The demo requires the model bundle and sample-data artifacts used by the inference engine. Those artifacts are not currently distributed in the public repository, so a fresh clone is **not yet a complete reproducible package**.
 
-Production deployment files are included (`serve.py`, Docker and Compose), but Docker reproducibility remains part of the active engineering audit because the current build depends on runtime/training artifacts outside the public repository.
+### Docker runtime boundary
+
+The Docker image intentionally contains **public application code only**. It does not bake private model/data artifacts or the serialization-compatibility module into the image.
+
+A validated runtime will use a local `artifacts/` directory mounted read-only. The current runtime contract expects:
+
+- `artifacts/abgen_bundle.pkl`
+- `artifacts/sample_data.pkl`
+- `artifacts/training_module.py`
+
+These files are excluded from Git. Their provenance and SHA-256 hashes must be recorded by the validated release process before use.
+
+Once a trusted artifact set exists locally:
+
+```bash
+docker compose build
+docker compose up
+```
+
+If the validated artifacts are absent, the container exits during preflight with a clear error. It does **not** guess parent directories, download unknown bundles or deserialize arbitrary third-party files.
+
+At present, the public repository does not distribute the validated V24 Slow Burn artifact set, so Docker should be treated as deployment scaffolding rather than a standalone reproducible model release.
 
 ---
 
 ## Repository engineering
 
-- `engine.py` — blind inference engine
+- `engine.py` — inference engine
 - `app.py` — Flask demo/API
 - `serve.py` — production WSGI entry point
+- `docker_entrypoint.py` — runtime artifact preflight for containers
+- `artifacts/README.md` — trusted runtime-artifact contract
 - `templates/` and `static/` — dashboard UI
 - `tests/` — regression tests being expanded during the audit
 - `.github/workflows/ci.yml` — automated regression CI on pushes and pull requests to `main`
@@ -100,6 +124,7 @@ Production deployment files are included (`serve.py`, Docker and Compose), but D
 - `REPRODUCIBILITY.md` — reproducibility and leakage protocol
 - `ARTIFACT_MANIFEST_TEMPLATE.md` — immutable artifact/evidence manifest template
 - `RELEASE_CHECKLIST.md` — release and public-claim gate
+- `SECURITY.md` — serialized-artifact and deployment security policy
 
 ---
 
