@@ -1,51 +1,75 @@
-﻿"""
-========================================================================
-  AB-GEN 80% Accuracy - BLIND INFERENCE ENGINE
-  Engine: Loads pre-trained model and performs geometric feature
-          expansion + polynomial meta-learning inference.
-  Dataset: CIFAR-10 (10 classes)
-  Note: This module does NOT contain training logic.
-========================================================================
+"""
+AB-GEN Research Demo - inference engine.
+
+Loads trusted pre-trained artifacts and performs geometric, spectral and
+polynomial inference over PCA-projected CIFAR-10 samples. This module does
+not contain training logic.
 """
 
+import importlib.util
+import os
+import sys
 import time
 import warnings
-import numpy as np
+
 import joblib
+import numpy as np
 import torch
 import torch.nn.functional as F
-import sys
-import os
-import importlib.util
 
 warnings.filterwarnings("ignore")
 
-# â”€â”€ Register custom training classes so joblib can deserialize the bundle â”€â”€
-# The .pkl was serialised with classes defined in the training script;
-# we must expose them under the same module name ('training_module').
+
+def _load_training_module(module_path: str):
+    """Load a trusted compatibility/training module as `training_module`."""
+    spec = importlib.util.spec_from_file_location("training_module", module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not create import spec for: {module_path}")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["training_module"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def _register_training_classes():
-    """Find training script in parent dir and register its classes for pickle."""
-    # Look two levels up: engine.py -> AB-GEN_GITHUB_DEMO -> AB-GEM + CNN
+    """Register classes required by legacy joblib bundles.
+
+    A validated deployment should set ABGEN_TRAINING_MODULE_PATH to an
+    explicitly supplied, trusted compatibility module. The parent-folder
+    search is retained only for backwards compatibility with the original
+    local project layout.
+    """
+    explicit_path = os.environ.get("ABGEN_TRAINING_MODULE_PATH")
+    if explicit_path:
+        explicit_path = os.path.abspath(explicit_path)
+        if os.path.isfile(explicit_path):
+            return _load_training_module(explicit_path)
+        print(
+            "[AB-GEN] WARNING: ABGEN_TRAINING_MODULE_PATH does not exist: "
+            f"{explicit_path}"
+        )
+        return None
+
     demo_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.dirname(demo_dir)
     for fname in ["AB-GEN_80_Accuracy.py", "AB-GEM + CNN.py"]:
         fpath = os.path.join(root_dir, fname)
-        if os.path.exists(fpath):
-            spec = importlib.util.spec_from_file_location("training_module", fpath)
-            mod  = importlib.util.module_from_spec(spec)
-            sys.modules["training_module"] = mod
-            spec.loader.exec_module(mod)
-            return mod
+        if os.path.isfile(fpath):
+            return _load_training_module(fpath)
     return None
+
 
 _training_mod = _register_training_classes()
 if _training_mod is None:
-    print("[AB-GEN] WARNING: Training script not found. Bundle load may fail.")
+    print(
+        "[AB-GEN] WARNING: serialization compatibility module not found. "
+        "A legacy bundle that references training_module classes may fail to load."
+    )
 
-# â”€â”€ CIFAR-10 Class names â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 CIFAR10_CLASSES = [
     "airplane", "automobile", "bird", "cat", "deer",
-    "dog", "frog", "horse", "ship", "truck"
+    "dog", "frog", "horse", "ship", "truck",
 ]
 
 COMPONENTES_PCA = 1200
@@ -53,13 +77,14 @@ VRAM_BATCH = 4096
 TORCH_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# â”€â”€ Pure Math Functions (Mirrored from training, no fit logic) â”€â”€â”€â”€â”€â”€â”€
 def _f32(x):
     return x.to(dtype=torch.float32) if torch.is_tensor(x) else np.asarray(x, dtype=np.float32)
+
 
 def _normalize_l2(x):
     x = np.asarray(x, dtype=np.float32)
     return (x / (np.linalg.norm(x, axis=1, keepdims=True) + 1e-8)).astype(np.float32, copy=False)
+
 
 def _multi_scale_fft(x_pca):
     def fft_block(x_np, blk):
@@ -69,7 +94,10 @@ def _multi_scale_fft(x_pca):
             for s in range(0, x_np.shape[0], VRAM_BATCH):
                 e = min(s + VRAM_BATCH, x_np.shape[0])
                 batch = torch.as_tensor(x_np[s:e], dtype=torch.float32, device=TORCH_DEVICE)
-                parts = [torch.abs(torch.fft.rfft(batch[:, b*blk:(b+1)*blk], dim=1)) for b in range(n_blocks)]
+                parts = [
+                    torch.abs(torch.fft.rfft(batch[:, b * blk:(b + 1) * blk], dim=1))
+                    for b in range(n_blocks)
+                ]
                 mags.append(torch.cat(parts, dim=1).cpu().numpy())
         return np.vstack(mags).astype(np.float32)
 
@@ -88,21 +116,23 @@ def _multi_scale_fft(x_pca):
     ma /= (ma.max(axis=1, keepdims=True) + 1e-8)
     return np.hstack([x_pca, mi, md, ma]).astype(np.float32)[:, COMPONENTES_PCA:]
 
+
 def _build_features(x_pca_w, cent_norm):
     xn = _normalize_l2(x_pca_w)
     sims = xn @ cent_norm.T
-    qik = _f32((sims**2) / ((sims**2).sum(axis=1, keepdims=True) + 1e-8))
-    hcr = _f32(np.hstack([sims, sims**2, sims**3]))
+    qik = _f32((sims ** 2) / ((sims ** 2).sum(axis=1, keepdims=True) + 1e-8))
+    hcr = _f32(np.hstack([sims, sims ** 2, sims ** 3]))
     dists = 1.0 - sims
     topo = _f32(np.hstack([
         dists.mean(axis=1, keepdims=True),
         dists.std(axis=1, keepdims=True),
         dists.min(axis=1, keepdims=True),
-        dists.std(axis=1, keepdims=True) / (dists.mean(axis=1, keepdims=True) + 1e-8)
+        dists.std(axis=1, keepdims=True) / (dists.mean(axis=1, keepdims=True) + 1e-8),
     ]))
     xd, cd = np.diff(xn, axis=1), np.diff(cent_norm, axis=1)
     gsb = _f32((xd @ cd.T) / (np.abs(xd @ cd.T).max(axis=1, keepdims=True) + 1e-8))
     return np.hstack([x_pca_w, _multi_scale_fft(x_pca_w), qik, hcr, topo, gsb]).astype(np.float32)
+
 
 def _extract_logit_features(estimators, x):
     probs = []
@@ -115,58 +145,50 @@ def _extract_logit_features(estimators, x):
     return np.hstack(probs).astype(np.float32)
 
 
-# â”€â”€ AB-GEN Engine Class â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class ABGenEngine:
-    """
-    Blind inference engine for AB-GEN 80% Accuracy.
-    Loads model bundles and the pre-computed PCA cache to perform
-    geometric + polynomial inference on CIFAR-10 images.
-    """
+    """Inference engine for trusted AB-GEN runtime artifacts."""
+
     def __init__(self, bundle_path: str):
-        print(f"[AB-GEN] Loading model bundle from: {bundle_path}")
+        print(f"[AB-GEN] Loading trusted model bundle from: {bundle_path}")
         bundle = joblib.load(bundle_path)
 
-        self.n1        = bundle["n1"]
+        self.n1 = bundle["n1"]
         self.pipeline_n2 = bundle["pipeline_n2"]
         self.cent_norm = bundle["cent_norm"]
-        self.pesos_f   = bundle["pesos_f"]
+        self.pesos_f = bundle["pesos_f"]
 
         print(f"[AB-GEN] Device: {TORCH_DEVICE}")
-        print("[AB-GEN] Engine ready âœ…")
+        print("[AB-GEN] Engine ready")
 
     def _preprocess(self, x_pca: np.ndarray) -> np.ndarray:
-        """Apply Fisher weighting + geometric feature expansion."""
+        """Apply Fisher weighting plus geometric/spectral feature expansion."""
         x_w = _f32(x_pca * self.pesos_f)
         return _build_features(x_w, self.cent_norm)
 
     def predict_batch(self, x_pca: np.ndarray):
-        """
-        Run full AB-GEN inference on a batch of PCA-projected vectors.
-        Returns (predicted_class_indices, class_probabilities, latency_ms).
-        """
+        """Return class predictions, normalized decision scores and latency."""
         t0 = time.perf_counter()
 
-        x_feat  = self._preprocess(x_pca)
+        x_feat = self._preprocess(x_pca)
         meta_raw = _extract_logit_features(self.n1.estimators_, x_feat)
 
-        poly   = self.pipeline_n2["poly"]
+        poly = self.pipeline_n2["poly"]
         scaler = self.pipeline_n2["scaler"]
-        ridge  = self.pipeline_n2["ridge"]
+        ridge = self.pipeline_n2["ridge"]
 
-        meta_poly   = poly.transform(meta_raw)
+        meta_poly = poly.transform(meta_raw)
         meta_scaled = scaler.transform(meta_poly)
 
-        preds  = ridge.predict(meta_scaled)
-        # Ridge doesn't output probabilities natively; use decision_function softmax
-        df      = ridge.decision_function(meta_scaled)
-        df_t    = torch.tensor(df, dtype=torch.float32)
-        probs   = F.softmax(df_t, dim=1).numpy()
+        preds = ridge.predict(meta_scaled)
+        # Softmax-normalized decision scores; calibration is evaluated separately.
+        decision = ridge.decision_function(meta_scaled)
+        decision_t = torch.tensor(decision, dtype=torch.float32)
+        scores = F.softmax(decision_t, dim=1).numpy()
 
         latency_ms = (time.perf_counter() - t0) * 1000.0
-        return preds.astype(int), probs, latency_ms
+        return preds.astype(int), scores, latency_ms
 
     def predict_single(self, x_pca_row: np.ndarray):
-        """Predict a single sample (1-D PCA vector)."""
-        preds, probs, latency = self.predict_batch(x_pca_row[np.newaxis, :])
-        return int(preds[0]), probs[0], latency
-
+        """Predict a single 1-D PCA vector."""
+        preds, scores, latency = self.predict_batch(x_pca_row[np.newaxis, :])
+        return int(preds[0]), scores[0], latency
