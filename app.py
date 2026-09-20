@@ -61,6 +61,18 @@ def load_resources():
     print(f"[SERVER] {len(sample_data['y'])} test samples ready.")
 
 
+def reset_session_stats():
+    """Restore session counters without changing fixed per-class array sizes."""
+    session_stats["total_images"] = 0
+    session_stats["total_correct"] = 0
+    session_stats["total_batches"] = 0
+    session_stats["total_latency_ms"] = 0.0
+    session_stats["class_correct"] = [0] * len(CIFAR10_CLASSES)
+    session_stats["class_total"] = [0] * len(CIFAR10_CLASSES)
+    session_stats["history_acc"].clear()
+    session_stats["energy_saved_j"] = 0.0
+
+
 # ── Routes ──────────────────────────────────────────────────────────────
 @app.route("/")
 def index():
@@ -173,13 +185,7 @@ def status():
 
 @app.route("/api/reset", methods=["POST"])
 def reset():
-    for k in session_stats:
-        if isinstance(session_stats[k], list):
-            session_stats[k].clear()
-        elif isinstance(session_stats[k], float):
-            session_stats[k] = 0.0
-        else:
-            session_stats[k] = 0
+    reset_session_stats()
     return jsonify({"ok": True})
 
 
