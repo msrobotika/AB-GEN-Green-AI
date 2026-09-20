@@ -6,6 +6,8 @@ AB-GEN is an experimental computer-vision architecture built around dimensional 
 
 The project is currently undergoing a reproducibility and engineering audit. Public claims are intentionally separated into **reported** and **reproduced/validated** results.
 
+**Official research site:** https://msrobotikaabgenresearch.wordpress.com
+
 ## Validation status
 
 - **CIFAR-10 V24 Slow Burn:** internal project records report **80.14% accuracy** and a recorded runtime of approximately **420 min**.
