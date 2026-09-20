@@ -9,6 +9,7 @@ import time
 import random
 import pickle
 import base64
+import threading
 import numpy as np
 from PIL import Image
 from flask import Flask, render_template, jsonify
@@ -40,6 +41,7 @@ session_stats = {
     "history_acc":     [],          # per-batch accuracy list
     "energy_saved_j":  0.0,
 }
+session_stats_lock = threading.RLock()
 
 
 def img_to_b64(arr_rgb_uint8: np.ndarray, scale: int = 4) -> str:
@@ -62,15 +64,59 @@ def load_resources():
 
 
 def reset_session_stats():
-    """Restore session counters without changing fixed per-class array sizes."""
-    session_stats["total_images"] = 0
-    session_stats["total_correct"] = 0
-    session_stats["total_batches"] = 0
-    session_stats["total_latency_ms"] = 0.0
-    session_stats["class_correct"] = [0] * len(CIFAR10_CLASSES)
-    session_stats["class_total"] = [0] * len(CIFAR10_CLASSES)
-    session_stats["history_acc"].clear()
-    session_stats["energy_saved_j"] = 0.0
+    """Atomically restore session counters and fixed per-class array sizes."""
+    with session_stats_lock:
+        session_stats["total_images"] = 0
+        session_stats["total_correct"] = 0
+        session_stats["total_batches"] = 0
+        session_stats["total_latency_ms"] = 0.0
+        session_stats["class_correct"] = [0] * len(CIFAR10_CLASSES)
+        session_stats["class_total"] = [0] * len(CIFAR10_CLASSES)
+        session_stats["history_acc"].clear()
+        session_stats["energy_saved_j"] = 0.0
+
+
+def record_session_batch(y_true, preds, latency_ms: float, batch_acc: float, saved_j: float):
+    """Atomically record one batch and return a consistent session snapshot."""
+    n = int(len(y_true))
+    correct = int((preds == y_true).sum())
+
+    with session_stats_lock:
+        session_stats["total_images"] += n
+        session_stats["total_correct"] += correct
+        session_stats["total_batches"] += 1
+        session_stats["total_latency_ms"] += float(latency_ms)
+        session_stats["history_acc"].append(round(float(batch_acc), 1))
+
+        for i in range(n):
+            c = int(y_true[i])
+            session_stats["class_total"][c] += 1
+            if preds[i] == y_true[i]:
+                session_stats["class_correct"][c] += 1
+
+        session_stats["energy_saved_j"] += float(saved_j)
+
+        session_acc = (
+            session_stats["total_correct"] /
+            max(session_stats["total_images"], 1)
+        ) * 100.0
+
+        class_acc = []
+        for c in range(len(CIFAR10_CLASSES)):
+            total = session_stats["class_total"][c]
+            ok = session_stats["class_correct"][c]
+            class_acc.append(round(ok / total * 100, 1) if total > 0 else None)
+
+        batches = session_stats["total_batches"]
+        return {
+            "session_acc": session_acc,
+            "session_images": session_stats["total_images"],
+            "session_batches": batches,
+            "session_energy_saved_mj": round(session_stats["energy_saved_j"] * 1000, 3),
+            "avg_latency_ms": round(session_stats["total_latency_ms"] / max(batches, 1), 1),
+            "class_acc": class_acc,
+            "history_acc": list(session_stats["history_acc"][-20:]),
+        }
 
 
 # ── Routes ──────────────────────────────────────────────────────────────
@@ -96,33 +142,18 @@ def analyze():
     correct   = int((preds == y_true).sum())
     batch_acc = correct / n * 100.0
 
-    # Update session
-    session_stats["total_images"]    += n
-    session_stats["total_correct"]   += correct
-    session_stats["total_batches"]   += 1
-    session_stats["total_latency_ms"] += latency_ms
-    session_stats["history_acc"].append(round(batch_acc, 1))
-    for i in range(n):
-        c = int(y_true[i])
-        session_stats["class_total"][c]   += 1
-        if preds[i] == y_true[i]:
-            session_stats["class_correct"][c] += 1
-
-    # Energy
+    # Energy reference values (historical/project constants; benchmark validation pending)
     energy_j     = J_PER_INFERENCE * n
     saved_j      = (CNN_J_INFERENCE - J_PER_INFERENCE) * n
-    session_stats["energy_saved_j"] += saved_j
-    co2_saved_ug = (saved_j / 3_600_000) * CO2_PER_KWH * 1e9  # nano-grams -> ug
+    co2_saved_ug = (saved_j / 3_600_000) * CO2_PER_KWH * 1e9
 
-    session_acc = (session_stats["total_correct"] /
-                   max(session_stats["total_images"], 1)) * 100.0
-
-    # Per-class accuracy
-    class_acc = []
-    for c in range(10):
-        t = session_stats["class_total"][c]
-        ok = session_stats["class_correct"][c]
-        class_acc.append(round(ok / t * 100, 1) if t > 0 else None)
+    session_snapshot = record_session_batch(
+        y_true=y_true,
+        preds=preds,
+        latency_ms=latency_ms,
+        batch_acc=batch_acc,
+        saved_j=saved_j,
+    )
 
     throughput = n / (latency_ms / 1000.0)  # images/s
 
@@ -151,20 +182,19 @@ def analyze():
         "total":           n,
         "latency_ms":      round(latency_ms, 1),
         "throughput":      round(throughput, 1),
-        # Energy M5
+        # Energy M5 (historical/reference constants; not live measurement)
         "energy_uj":       round(energy_j * 1e6, 1),
         "energy_saved_uj": round(saved_j * 1e6, 1),
         "co2_saved_ug":    round(co2_saved_ug, 4),
         "saving_pct":      round((saved_j / (CNN_J_INFERENCE * n)) * 100, 1),
-        # Session cumulative
-        "session_acc":      round(session_acc, 1),
-        "session_images":   session_stats["total_images"],
-        "session_batches":  session_stats["total_batches"],
-        "session_energy_saved_mj": round(session_stats["energy_saved_j"] * 1000, 3),
-        "avg_latency_ms":   round(session_stats["total_latency_ms"] /
-                                  session_stats["total_batches"], 1),
-        "class_acc":        class_acc,
-        "history_acc":      session_stats["history_acc"][-20:],  # last 20 batches
+        # Session cumulative snapshot
+        "session_acc":      round(session_snapshot["session_acc"], 1),
+        "session_images":   session_snapshot["session_images"],
+        "session_batches":  session_snapshot["session_batches"],
+        "session_energy_saved_mj": session_snapshot["session_energy_saved_mj"],
+        "avg_latency_ms":   session_snapshot["avg_latency_ms"],
+        "class_acc":        session_snapshot["class_acc"],
+        "history_acc":      session_snapshot["history_acc"],
         # Results
         "results":          results,
         "device":           "CUDA" if __import__("torch").cuda.is_available() else "CPU",
