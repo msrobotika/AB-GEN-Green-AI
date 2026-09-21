@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AB-GEN Research Demo | CIFAR-10</title>
-  <meta name="description" content="AB-GEN research demo for CIFAR-10. Live cached-PCA inference metrics are separated from reported accuracy and historical energy reference figures pending validation."/>
+  <title>AB-GEN Research Demo | Evidence-first CIFAR-10 diagnostics</title>
+  <meta name="description" content="AB-GEN diagnostic demo over recovered CIFAR-10 PCA-cache artifacts. Historical, recovered and live diagnostic evidence are kept separate; energy remains unvalidated."/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/static/style.css"/>
@@ -17,92 +17,74 @@
       <span class="logo-dna">&#129514;</span>
       <div>
         <h1 class="logo-title">AB-GEN <span class="highlight">Research Demo</span></h1>
-        <p class="logo-sub">CIFAR-10 &middot; Geometric + Spectral + Polynomial AI &middot; Evidence-first validation</p>
+        <p class="logo-sub">CIFAR-10 &middot; recovered PCA-cache inference &middot; evidence-first validation</p>
       </div>
     </div>
     <div class="header-badges">
-      <span class="badge badge-green">No Pure CNN</span>
-      <span class="badge badge-blue">Geometric AI</span>
-      <span class="badge badge-purple">Poly Fusion</span>
-      <span id="device-badge" class="badge badge-orange">CPU</span>
+      <span class="badge badge-blue">Recovered path</span>
+      <span class="badge badge-purple">Uncalibrated scores</span>
+      <span class="badge badge-orange">Batch dependence known</span>
+      <span id="device-badge" class="badge badge-gray">CPU</span>
     </div>
   </div>
 </header>
 
+<section class="container">
+  <div class="panel">
+    <h2 class="panel-title">Important diagnostic boundary</h2>
+    <p>
+      This interface runs a <strong>recovered historical inference path</strong> on cached PCA-projected CIFAR-10 samples.
+      It is not the clean RAW&rarr;PCA reproduction. A targeted audit demonstrated batch-dependent predictions in low-margin cases,
+      so session accuracy shown here is diagnostic and must not be promoted as a reproduced baseline.
+    </p>
+  </div>
+</section>
+
 <section class="hero container">
   <div class="hero-grid">
     <div class="stat-card" id="card-session-acc">
-      <div class="stat-top">
-        <span class="stat-icon-txt">&#127919;</span>
-        <span class="stat-badge">LIVE</span>
-      </div>
-      <div class="stat-value">
-        <span id="stat-session-acc">—</span><span class="stat-unit">%</span>
-      </div>
+      <div class="stat-top"><span class="stat-icon-txt">&#127919;</span><span class="stat-badge">DIAGNOSTIC</span></div>
+      <div class="stat-value"><span id="stat-session-acc">—</span><span class="stat-unit">%</span></div>
       <div class="stat-label">Session Accuracy</div>
-      <div class="stat-sub">Reference threshold: {{ accuracy_target }}% &nbsp;&bull;&nbsp; <span id="stat-imgs">0</span> cached test samples analyzed</div>
+      <div class="stat-sub"><span id="stat-imgs">0</span> cached samples processed in deterministic stored order</div>
       <div class="mini-bar-wrap"><div class="mini-bar" id="bar-acc" style="width:0%"></div></div>
     </div>
 
     <div class="stat-card" id="card-batch">
-      <div class="stat-top">
-        <span class="stat-icon-txt">&#9889;</span>
-        <span class="stat-badge stat-badge-orange">LIVE</span>
-      </div>
-      <div class="stat-value">
-        <span id="stat-lat">—</span><span class="stat-unit">ms</span>
-      </div>
+      <div class="stat-top"><span class="stat-icon-txt">&#9889;</span><span class="stat-badge stat-badge-orange">LIVE</span></div>
+      <div class="stat-value"><span id="stat-lat">—</span><span class="stat-unit">ms</span></div>
       <div class="stat-label">Latency / Batch</div>
-      <div class="stat-sub">
-        Throughput: <span id="stat-throughput">—</span> img/s &nbsp;&bull;&nbsp;
-        Avg: <span id="stat-avg-lat">—</span> ms
-      </div>
+      <div class="stat-sub">Throughput: <span id="stat-throughput">—</span> img/s &nbsp;&bull;&nbsp; Avg: <span id="stat-avg-lat">—</span> ms</div>
     </div>
 
-    <div class="stat-card" id="card-energy">
-      <div class="stat-top">
-        <span class="stat-icon-txt">&#127807;</span>
-        <span class="stat-badge stat-badge-green">REFERENCE</span>
-      </div>
-      <div class="stat-value">
-        <span id="stat-saving">—</span><span class="stat-unit">%</span>
-      </div>
-      <div class="stat-label">Historical Energy Estimate vs ResNet</div>
-      <div class="stat-sub">
-        Derived from project constants, not live power measurement.<br/>
-        Reference-derived session value: <span id="stat-energy-saved">—</span> mJ &nbsp;&bull;&nbsp;
-        CO&#8322; estimate: <span id="stat-co2">—</span> &#956;g
-      </div>
+    <div class="stat-card" id="card-integrity">
+      <div class="stat-top"><span class="stat-icon-txt">&#128274;</span><span class="stat-badge stat-badge-orange">KNOWN ISSUE</span></div>
+      <div class="stat-value"><span class="stat-unit">BATCH</span></div>
+      <div class="stat-label">Inference invariance</div>
+      <div class="stat-sub">Targeted audit found prediction changes with batch composition/shape. Clean baseline must remove or explicitly control this mechanism.</div>
     </div>
 
     <div class="stat-card" id="card-batches">
-      <div class="stat-top">
-        <span class="stat-icon-txt">&#128202;</span>
-        <span class="stat-badge stat-badge-purple">LIVE</span>
-      </div>
+      <div class="stat-top"><span class="stat-icon-txt">&#128202;</span><span class="stat-badge stat-badge-purple">LIVE</span></div>
       <div class="stat-value"><span id="stat-batches">0</span></div>
       <div class="stat-label">Batches Processed</div>
-      <div class="stat-sub">Last batch: <span id="stat-last-acc">—</span>% accuracy</div>
+      <div class="stat-sub">Last diagnostic batch: <span id="stat-last-acc">—</span>%</div>
     </div>
   </div>
 </section>
 
 <section class="container dual-section">
   <div class="panel" id="panel-history">
-    <h2 class="panel-title">Batch Accuracy History</h2>
+    <h2 class="panel-title">Diagnostic Batch Accuracy History</h2>
     <div class="chart-area" id="chart-area">
-      <div class="chart-empty">Run first batch to see history</div>
+      <div class="chart-empty">Run the first deterministic batch to see history</div>
       <canvas id="acc-chart" width="0" height="120" style="display:none"></canvas>
     </div>
-    <div class="chart-legend">
-      <span class="legend-dot dot-green"></span> live batch accuracy
-      <span class="legend-line"></span>
-      <span class="legend-dot dot-dim"></span> 80% reference threshold
-    </div>
+    <div class="chart-legend"><span class="legend-dot dot-green"></span> live diagnostic batch accuracy</div>
   </div>
 
   <div class="panel" id="panel-class">
-    <h2 class="panel-title">Per-Class Accuracy — Current Session</h2>
+    <h2 class="panel-title">Per-Class Accuracy — Current Diagnostic Session</h2>
     <div class="class-grid">
       {% for c in classes %}
       <div class="class-row">
@@ -116,24 +98,24 @@
 </section>
 
 <section class="container arch-section">
-  <h2 class="panel-title">AB-GEN Inference Path</h2>
+  <h2 class="panel-title">Recovered AB-GEN inference path</h2>
   <div class="pipeline">
-    <div class="pipe-step"><div class="pipe-icon">&#128208;</div><div class="pipe-lbl">PCA 1200D<br/><small>Geometric embed</small></div></div>
+    <div class="pipe-step"><div class="pipe-icon">&#128208;</div><div class="pipe-lbl">Cached PCA 1200D<br/><small>RAW&rarr;PCA provenance still open</small></div></div>
     <div class="pipe-arr">&rarr;</div>
-    <div class="pipe-step"><div class="pipe-icon">&#127754;</div><div class="pipe-lbl">Multi-FFT<br/><small>Frequency topology</small></div></div>
+    <div class="pipe-step"><div class="pipe-icon">&#9878;</div><div class="pipe-lbl">Fisher weights<br/><small>recovered class-dependent scaling</small></div></div>
     <div class="pipe-arr">&rarr;</div>
-    <div class="pipe-step"><div class="pipe-icon">&#127914;</div><div class="pipe-lbl">Fisher Weights<br/><small>Class discriminant</small></div></div>
+    <div class="pipe-step"><div class="pipe-icon">&#127754;</div><div class="pipe-lbl">FFT + geometry<br/><small>feature expansion</small></div></div>
     <div class="pipe-arr">&rarr;</div>
-    <div class="pipe-step"><div class="pipe-icon">&#128029;</div><div class="pipe-lbl">Swarm N1<br/><small>LR + MLPs + LGBM</small></div></div>
+    <div class="pipe-step"><div class="pipe-icon">&#128029;</div><div class="pipe-lbl">N1 ensemble<br/><small>LR + MLPs + LightGBM</small></div></div>
     <div class="pipe-arr">&rarr;</div>
-    <div class="pipe-step pipe-highlight"><div class="pipe-icon">&#129518;</div><div class="pipe-lbl">Poly Ridge N2<br/><small>Meta-learner</small></div></div>
+    <div class="pipe-step pipe-highlight"><div class="pipe-icon">&#129518;</div><div class="pipe-lbl">Polynomial Ridge N2<br/><small>reconstructed meta-learner</small></div></div>
     <div class="pipe-arr">&rarr;</div>
-    <div class="pipe-step pipe-result"><div class="pipe-icon">&#128203;</div><div class="pipe-lbl">80.14% reported<br/><small>V24 reproduction pending</small></div></div>
+    <div class="pipe-step pipe-result"><div class="pipe-icon">&#128203;</div><div class="pipe-lbl">80.17% recovered cache path<br/><small>80.14% remains historical/report-only</small></div></div>
   </div>
 </section>
 
 <section class="container analyze-section">
-  <button id="btn-analyze" class="btn-primary" onclick="runAnalysis()">&#128640; ANALYZE RANDOM CACHED BATCH</button>
+  <button id="btn-analyze" class="btn-primary" onclick="runAnalysis()">&#128640; ANALYZE NEXT DETERMINISTIC CACHED BATCH</button>
   <button class="btn-secondary" onclick="resetSession()">Reset Session</button>
   <div id="batch-bar" class="batch-bar hidden">
     <span id="bb-correct">?</span>/<span id="bb-total">12</span> correct &mdash;
@@ -153,47 +135,26 @@
   <h2 class="panel-title">Evidence Status</h2>
   <div class="cmp-table-wrap">
     <table class="cmp-table">
-      <thead>
-        <tr><th>Item</th><th>Value</th><th>Status</th><th>Meaning</th></tr>
-      </thead>
+      <thead><tr><th>Item</th><th>Value</th><th>Status</th><th>Meaning</th></tr></thead>
       <tbody>
-        <tr class="row-highlight">
-          <td><strong>V24 Slow Burn / CIFAR-10</strong></td>
-          <td class="acc-col">80.14%</td>
-          <td>Reported</td>
-          <td>Internal project record; clean reproduction pending.</td>
-        </tr>
-        <tr>
-          <td>AB-GEN energy reference</td>
-          <td>0.31 mJ / inference</td>
-          <td>Historical reference</td>
-          <td>Not measured live by this demo; controlled re-benchmark pending.</td>
-        </tr>
-        <tr>
-          <td>ResNet-18 energy reference</td>
-          <td>4.2 mJ / inference</td>
-          <td>Historical comparator</td>
-          <td>Must be re-measured on identical hardware and boundary.</td>
-        </tr>
-        <tr>
-          <td>Session accuracy / latency</td>
-          <td>Shown above</td>
-          <td>Live demo metric</td>
-          <td>Computed from cached CIFAR-10 PCA-projected samples in the current session.</td>
-        </tr>
+        <tr><td><strong>V24 Slow Burn historical record</strong></td><td class="acc-col">80.14%</td><td>Reported</td><td>Exact RAW-to-prediction historical reproduction remains open.</td></tr>
+        <tr class="row-highlight"><td><strong>Elite / Slow Burn recovered bundle</strong></td><td class="acc-col">80.17%</td><td>Recovered</td><td>Cache-path execution result; not proof of the exact historical 80.14% path.</td></tr>
+        <tr><td>M5 MASTER</td><td>79.55%</td><td>Reconstructed</td><td>Original frozen N1 plus reconstructed polynomial N2; prediction counts checked.</td></tr>
+        <tr><td>M4 original</td><td>78.05%</td><td>Recovered</td><td>Recovered PCA-cache evaluation matching the recorded project result.</td></tr>
+        <tr><td>Green AI energy</td><td>No validated value</td><td>Pending measurement</td><td>Historical constants are not shown as benchmark results. Controlled same-hardware measurement is required.</td></tr>
+        <tr><td>Current session</td><td>Shown above</td><td>Diagnostic only</td><td>Cached PCA samples through a recovered path with known batch dependence.</td></tr>
       </tbody>
     </table>
   </div>
 </section>
 
 <footer class="site-footer container">
-  <p>AB-GEN Research Demo &mdash; Hybrid Geometric-Polynomial Ensemble on CIFAR-10</p>
-  <p class="footer-sub">Reported results, live demo metrics and historical reference figures are intentionally kept separate.</p>
+  <p>AB-GEN Research Demo &mdash; geometric / spectral / polynomial vision research</p>
+  <p class="footer-sub">Reported, recovered, reconstructed and reproduced evidence states are intentionally kept separate.</p>
 </footer>
 
 <script>
 const CLASSES = {{ classes | tojson }};
-const TARGET_ACC = {{ accuracy_target }};
 
 async function fetchStatus() {
   try {
@@ -214,24 +175,18 @@ async function runAnalysis() {
   try {
     const r = await fetch("/api/analyze", { method: "POST" });
     const data = await r.json();
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
 
     flash("stat-session-acc", data.session_acc.toFixed(1));
     flash("stat-lat", data.latency_ms);
     flash("stat-throughput", data.throughput);
     flash("stat-avg-lat", data.avg_latency_ms);
-    flash("stat-saving", data.saving_pct);
-    flash("stat-energy-saved", data.session_energy_saved_mj);
-    flash("stat-co2", data.co2_saved_ug);
     flash("stat-batches", data.session_batches);
     flash("stat-last-acc", data.batch_accuracy);
     flash("stat-imgs", data.session_images);
 
     const pct = Math.min(data.session_acc / 100, 1);
     document.getElementById("bar-acc").style.width = (pct * 100) + "%";
-    document.getElementById("bar-acc").style.background =
-      data.session_acc >= TARGET_ACC
-        ? "linear-gradient(90deg,#4ec994,#2dd4bf)"
-        : "linear-gradient(90deg,#e8a838,#eb4d4d)";
 
     const bar = document.getElementById("batch-bar");
     document.getElementById("bb-correct").textContent = data.correct;
@@ -239,18 +194,13 @@ async function runAnalysis() {
     document.getElementById("bb-pct").textContent = data.batch_accuracy;
     document.getElementById("bb-lat").textContent = data.latency_ms + "ms";
     document.getElementById("bb-thr").textContent = data.throughput + " img/s";
-    bar.className = "batch-bar " + (data.batch_accuracy >= TARGET_ACC * 0.75 ? "bar-good" : "bar-bad");
+    bar.className = "batch-bar";
 
     data.class_acc.forEach((v, i) => {
       const clsBar = document.getElementById("cbar-" + i);
       const clsPct = document.getElementById("cpct-" + i);
-      if (v === null) { clsPct.textContent = "—"; return; }
+      if (v === null) { clsPct.textContent = "—"; clsBar.style.width = "0%"; return; }
       clsBar.style.width = v + "%";
-      clsBar.style.background = v >= 70
-        ? "linear-gradient(90deg,#4ec994,#2dd4bf)"
-        : v >= 50
-        ? "linear-gradient(90deg,#e8a838,#f59e0b)"
-        : "linear-gradient(90deg,#eb4d4d,#f97316)";
       clsPct.textContent = v.toFixed(0) + "%";
     });
 
@@ -262,7 +212,7 @@ async function runAnalysis() {
   }
 
   btn.disabled = false;
-  btn.innerHTML = "&#128640; ANALYZE RANDOM CACHED BATCH";
+  btn.innerHTML = "&#128640; ANALYZE NEXT DETERMINISTIC CACHED BATCH";
 }
 
 function renderGrid(results) {
@@ -277,11 +227,11 @@ function renderGrid(results) {
       ? `<span class="verdict verdict-ok">&#10003; ${r.pred_label}</span>`
       : `<span class="verdict verdict-err">&#10007; ${r.pred_label}</span>`;
 
-    const top3html = r.top3.map(t => `
+    const top3html = r.top3.map((t, i) => `
       <div class="top3-row">
         <span class="top3-cls">${t.class}</span>
-        <div class="top3-bar-bg"><div class="top3-bar" style="width:${t.prob}%;background:${t.prob===r.top3[0].prob?'#4ec994':'#4b5563'}"></div></div>
-        <span class="top3-pct">${t.prob.toFixed(1)}%</span>
+        <div class="top3-bar-bg"><div class="top3-bar" style="width:${t.score_pct}%"></div></div>
+        <span class="top3-pct">${t.score_pct.toFixed(1)}%</span>
       </div>`).join("");
 
     card.innerHTML = `
@@ -293,9 +243,9 @@ function renderGrid(results) {
         ${verdict}
         <div class="true-lbl">True: <strong>${r.true_label}</strong></div>
         <div class="conf-row">
-          <span class="conf-label">Score</span>
-          <div class="conf-bar-bg"><div class="conf-bar" style="width:${r.confidence}%;background:${r.confidence>50?'#4ec994':'#e8a838'}"></div></div>
-          <span class="conf-val">${r.confidence.toFixed(1)}%</span>
+          <span class="conf-label">Normalized score</span>
+          <div class="conf-bar-bg"><div class="conf-bar" style="width:${r.score_pct}%"></div></div>
+          <span class="conf-val">${r.score_pct.toFixed(1)}%</span>
         </div>
         <div class="top3">${top3html}</div>
       </div>`;
@@ -305,87 +255,45 @@ function renderGrid(results) {
 
 function drawChart(history) {
   const area = document.getElementById("chart-area");
-  const canvas = document.getElementById("acc-chart");
   const empty = area.querySelector(".chart-empty");
-  if (!history.length) return;
-
-  empty.style.display = "none";
+  const canvas = document.getElementById("acc-chart");
+  if (!history.length) { if (empty) empty.style.display = "block"; canvas.style.display = "none"; return; }
+  if (empty) empty.style.display = "none";
   canvas.style.display = "block";
-  canvas.width = area.clientWidth || 500;
-  const W = canvas.width, H = canvas.height;
+  canvas.width = area.clientWidth || 600;
+  canvas.height = 120;
   const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, W, H);
-
-  const targetY = H - (TARGET_ACC / 100) * H;
-  ctx.setLineDash([6,4]);
-  ctx.strokeStyle = "#4b5563";
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0, targetY); ctx.lineTo(W, targetY); ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle = "#6b7280";
-  ctx.font = "10px JetBrains Mono";
-  ctx.fillText("80% ref", 4, targetY - 4);
-
-  if (history.length < 2) return;
-  const n = history.length;
-  const dx = W / (n - 1);
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, "rgba(78,201,148,0.35)");
-  grad.addColorStop(1, "rgba(78,201,148,0)");
-
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = "#4ec994";
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(0, H - (history[0] / 100) * H);
   history.forEach((v, i) => {
-    const x = i * dx, y = H - (v / 100) * H;
+    const x = history.length === 1 ? canvas.width / 2 : i * (canvas.width - 20) / (history.length - 1) + 10;
+    const y = canvas.height - Math.max(0, Math.min(100, v)) / 100 * (canvas.height - 20) - 10;
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   });
-  const lastX = (n - 1) * dx;
-  ctx.lineTo(lastX, H); ctx.lineTo(0, H); ctx.closePath();
-  ctx.fillStyle = grad; ctx.fill();
-
-  ctx.beginPath();
-  history.forEach((v, i) => {
-    const x = i * dx, y = H - (v / 100) * H;
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  });
-  ctx.strokeStyle = "#4ec994"; ctx.lineWidth = 2.5; ctx.stroke();
-
-  history.forEach((v, i) => {
-    const x = i * dx, y = H - (v / 100) * H;
-    ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = v >= TARGET_ACC ? "#4ec994" : "#e8a838";
-    ctx.fill();
-  });
-}
-
-function flash(id, val) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.remove("flash");
-  void el.offsetWidth;
-  el.textContent = val;
-  el.classList.add("flash");
+  ctx.stroke();
 }
 
 async function resetSession() {
   await fetch("/api/reset", { method: "POST" });
-  ["stat-session-acc","stat-lat","stat-throughput","stat-avg-lat","stat-saving","stat-energy-saved","stat-co2","stat-batches","stat-last-acc","stat-imgs"]
-    .forEach(id => { const el=document.getElementById(id); if(el) el.textContent="—"; });
+  ["stat-session-acc","stat-lat","stat-throughput","stat-avg-lat","stat-last-acc"].forEach(id => document.getElementById(id).textContent = "—");
   document.getElementById("stat-batches").textContent = "0";
   document.getElementById("stat-imgs").textContent = "0";
-  document.getElementById("bar-acc").style.width = "0%";
   document.getElementById("image-grid").innerHTML = "";
   document.getElementById("grid-title").style.display = "none";
   document.getElementById("batch-bar").className = "batch-bar hidden";
-  for (let i = 0; i < 10; i++) {
-    const b = document.getElementById("cbar-"+i);
-    const p = document.getElementById("cpct-"+i);
-    if(b) b.style.width="0%";
-    if(p) p.textContent="—";
-  }
-  const canvas = document.getElementById("acc-chart");
-  canvas.style.display="none";
-  document.querySelector(".chart-empty").style.display="flex";
+  document.getElementById("bar-acc").style.width = "0%";
+  CLASSES.forEach((_, i) => {
+    document.getElementById("cbar-" + i).style.width = "0%";
+    document.getElementById("cpct-" + i).textContent = "—";
+  });
+  drawChart([]);
+}
+
+function flash(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
 }
 
 fetchStatus();

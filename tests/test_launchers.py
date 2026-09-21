@@ -8,20 +8,33 @@ def _read(name: str) -> str:
     return (ROOT / name).read_text(encoding="utf-8")
 
 
-def test_demo_launcher_requires_runtime_artifacts_without_parent_export_guessing():
+def _assert_trusted_runtime_contract(script: str):
+    assert "artifacts\\abgen_bundle.pkl" in script
+    assert "artifacts\\sample_data.pkl" in script
+    assert "artifacts\\training_module.py" in script
+    assert "artifacts\\runtime-manifest.json" in script
+    assert "ABGEN_REQUIRE_MANIFEST=1" in script
+    assert (
+        "Do not search parent folders" in script
+        or "AB-GEN evidence/release package" in script
+    )
+
+
+def test_demo_launcher_requires_complete_trusted_runtime_set():
     script = _read("run_demo.bat")
 
-    assert 'if not exist "abgen_bundle.pkl" goto :missing_artifacts' in script
-    assert 'if not exist "sample_data.pkl" goto :missing_artifacts' in script
+    _assert_trusted_runtime_contract(script)
     assert "export_bundle.py" not in script
-    assert "assumed parent folder" in script
+    assert "python app.py" in script
     assert "exit /b 2" in script
+    assert "exit /b 3" in script
 
 
-def test_production_launcher_requires_runtime_artifacts():
+def test_production_launcher_requires_complete_trusted_runtime_set():
     script = _read("run_production.bat")
 
-    assert 'if not exist "abgen_bundle.pkl" goto :missing_artifacts' in script
-    assert 'if not exist "sample_data.pkl" goto :missing_artifacts' in script
-    assert "validated AB-GEN release process" in script
+    _assert_trusted_runtime_contract(script)
+    assert "requirements_prod.txt" in script
+    assert "python serve.py" in script
     assert "exit /b 2" in script
+    assert "exit /b 3" in script

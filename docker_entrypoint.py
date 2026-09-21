@@ -1,54 +1,29 @@
 """Docker entrypoint for the AB-GEN research demo.
 
-The image deliberately contains no private model artifacts. A validated runtime
-must mount trusted artifacts read-only and point the process at them through
-explicit environment variables.
+The image contains no private model artifacts. Startup fails closed before the
+application can deserialize the model bundle unless the configured runtime
+artifacts exist and match the trusted manifest.
 """
 
 import os
 import sys
-from pathlib import Path
 
-
-def required_runtime_paths(env=None):
-    env = os.environ if env is None else env
-    required = {
-        "ABGEN_BUNDLE_PATH": env.get("ABGEN_BUNDLE_PATH", "/artifacts/abgen_bundle.pkl"),
-        "ABGEN_SAMPLE_DATA_PATH": env.get("ABGEN_SAMPLE_DATA_PATH", "/artifacts/sample_data.pkl"),
-        "ABGEN_TRAINING_MODULE_PATH": env.get(
-            "ABGEN_TRAINING_MODULE_PATH", "/artifacts/training_module.py"
-        ),
-    }
-    return {key: Path(value) for key, value in required.items()}
-
-
-def missing_runtime_paths(env=None):
-    return {
-        key: path
-        for key, path in required_runtime_paths(env).items()
-        if not path.is_file()
-    }
+from runtime_integrity import runtime_preflight_errors
 
 
 def main():
-    missing = missing_runtime_paths()
-    if missing:
+    errors = runtime_preflight_errors()
+    if errors:
         print("[AB-GEN] Runtime preflight failed.", file=sys.stderr)
+        for error in errors:
+            print(f"  - {error}", file=sys.stderr)
         print(
-            "[AB-GEN] This image intentionally ships without model/data artifacts.",
+            "[AB-GEN] Refusing to start before model deserialization. "
+            "Use only trusted artifacts and a manifest bound to the accepted "
+            "release/evidence package. See SECURITY.md and REPRODUCIBILITY.md.",
             file=sys.stderr,
         )
-        print(
-            "[AB-GEN] Mount a validated, trusted artifact directory read-only and provide:",
-            file=sys.stderr,
-        )
-        for key, path in missing.items():
-            print(f"  - {key} -> {path}", file=sys.stderr)
-        print(
-            "[AB-GEN] Never load unverified pickle/joblib artifacts. See SECURITY.md and REPRODUCIBILITY.md.",
-            file=sys.stderr,
-        )
-        return 2
+        return 3
 
     os.execv(sys.executable, [sys.executable, "serve.py"])
     return 0

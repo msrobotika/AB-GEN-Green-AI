@@ -1,27 +1,30 @@
-"""
-AB-GEN Research Demo - inference engine.
+"""AB-GEN Research Demo - recovered inference engine.
 
 Loads trusted pre-trained artifacts and performs geometric, spectral and
 polynomial inference over PCA-projected CIFAR-10 samples. This module does
-not contain training logic.
+not contain training logic and must not be described as a clean RAW-image
+reproduction.
+
+Important: the recovered historical meta-feature path intentionally preserves
+a noise-averaging step because changing it would alter the recovered behavior.
+A targeted audit has shown that this mechanism can make predictions depend on
+batch shape/position. That behavior is documented, not endorsed as a clean
+inference design.
 """
 
 import importlib.util
 import os
 import sys
 import time
-import warnings
 
 import joblib
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-warnings.filterwarnings("ignore")
-
 
 def _load_training_module(module_path: str):
-    """Load a trusted compatibility/training module as `training_module`."""
+    """Load a trusted compatibility/training module as ``training_module``."""
     spec = importlib.util.spec_from_file_location("training_module", module_path)
     if spec is None or spec.loader is None:
         raise ImportError(f"Could not create import spec for: {module_path}")
@@ -34,10 +37,10 @@ def _load_training_module(module_path: str):
 def _register_training_classes():
     """Register classes required by legacy joblib bundles.
 
-    A validated deployment should set ABGEN_TRAINING_MODULE_PATH to an
+    A validated deployment should set ``ABGEN_TRAINING_MODULE_PATH`` to an
     explicitly supplied, trusted compatibility module. The parent-folder
-    search is retained only for backwards compatibility with the original
-    local project layout.
+    search is retained only for backwards compatibility with the historical
+    local project layout and is never used by the container contract.
     """
     explicit_path = os.environ.get("ABGEN_TRAINING_MODULE_PATH")
     if explicit_path:
@@ -55,6 +58,10 @@ def _register_training_classes():
     for fname in ["AB-GEN_80_Accuracy.py", "AB-GEM + CNN.py"]:
         fpath = os.path.join(root_dir, fname)
         if os.path.isfile(fpath):
+            print(
+                "[AB-GEN] WARNING: using historical parent-layout compatibility "
+                f"module: {fpath}"
+            )
             return _load_training_module(fpath)
     return None
 
@@ -75,6 +82,8 @@ CIFAR10_CLASSES = [
 COMPONENTES_PCA = 1200
 VRAM_BATCH = 4096
 TORCH_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+HISTORICAL_NOISE_SEED = 42
+HISTORICAL_NOISE_STD = 0.015
 
 
 def _f32(x):
@@ -134,19 +143,28 @@ def _build_features(x_pca_w, cent_norm):
     return np.hstack([x_pca_w, _multi_scale_fft(x_pca_w), qik, hcr, topo, gsb]).astype(np.float32)
 
 
-def _extract_logit_features(estimators, x):
+def _extract_logit_features_historical(estimators, x):
+    """Reproduce the recovered historical N1 noise-averaging behavior.
+
+    The RNG is reset on every call. Noise is therefore deterministic for a
+    given array shape/order, but it is assigned by batch position rather than
+    by stable sample identity. The current audit has demonstrated that this can
+    change predictions when the same sample is evaluated in different batch
+    contexts.
+    """
     probs = []
-    rng = np.random.default_rng(42)
+    rng = np.random.default_rng(HISTORICAL_NOISE_SEED)
     for est in estimators:
         p = est.predict_proba(x)
-        p += est.predict_proba(x + rng.normal(0, 0.015, x.shape).astype(np.float32))
+        noise = rng.normal(0, HISTORICAL_NOISE_STD, x.shape).astype(np.float32)
+        p += est.predict_proba(x + noise)
         p = p / 2.0
         probs.append(np.log(p + 1e-8).astype(np.float32))
     return np.hstack(probs).astype(np.float32)
 
 
 class ABGenEngine:
-    """Inference engine for trusted AB-GEN runtime artifacts."""
+    """Inference engine for trusted, recovered AB-GEN runtime artifacts."""
 
     def __init__(self, bundle_path: str):
         print(f"[AB-GEN] Loading trusted model bundle from: {bundle_path}")
@@ -158,19 +176,23 @@ class ABGenEngine:
         self.pesos_f = bundle["pesos_f"]
 
         print(f"[AB-GEN] Device: {TORCH_DEVICE}")
-        print("[AB-GEN] Engine ready")
+        print("[AB-GEN] Recovered historical inference path ready")
 
     def _preprocess(self, x_pca: np.ndarray) -> np.ndarray:
-        """Apply Fisher weighting plus geometric/spectral feature expansion."""
+        """Apply recovered Fisher weighting plus geometric/spectral expansion."""
         x_w = _f32(x_pca * self.pesos_f)
         return _build_features(x_w, self.cent_norm)
 
     def predict_batch(self, x_pca: np.ndarray):
-        """Return class predictions, normalized decision scores and latency."""
+        """Return predictions, normalized decision scores and elapsed latency.
+
+        This method preserves the recovered historical batch-dependent
+        noise-averaging path. It is not the future clean-baseline inference API.
+        """
         t0 = time.perf_counter()
 
         x_feat = self._preprocess(x_pca)
-        meta_raw = _extract_logit_features(self.n1.estimators_, x_feat)
+        meta_raw = _extract_logit_features_historical(self.n1.estimators_, x_feat)
 
         poly = self.pipeline_n2["poly"]
         scaler = self.pipeline_n2["scaler"]
@@ -180,15 +202,14 @@ class ABGenEngine:
         meta_scaled = scaler.transform(meta_poly)
 
         preds = ridge.predict(meta_scaled)
-        # Softmax-normalized decision scores; calibration is evaluated separately.
         decision = ridge.decision_function(meta_scaled)
-        decision_t = torch.tensor(decision, dtype=torch.float32)
+        decision_t = torch.as_tensor(decision, dtype=torch.float32)
         scores = F.softmax(decision_t, dim=1).numpy()
 
         latency_ms = (time.perf_counter() - t0) * 1000.0
         return preds.astype(int), scores, latency_ms
 
     def predict_single(self, x_pca_row: np.ndarray):
-        """Predict a single 1-D PCA vector."""
+        """Predict one PCA vector through the same recovered historical path."""
         preds, scores, latency = self.predict_batch(x_pca_row[np.newaxis, :])
         return int(preds[0]), scores[0], latency
