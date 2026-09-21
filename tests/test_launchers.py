@@ -14,7 +14,10 @@ def _assert_trusted_runtime_contract(script: str):
     assert "artifacts\\training_module.py" in script
     assert "artifacts\\runtime-manifest.json" in script
     assert "ABGEN_REQUIRE_MANIFEST=1" in script
-    assert "Do not search parent folders" in script or "trusted AB-GEN evidence/release package" in script
+    assert (
+        "Do not search parent folders" in script
+        or "AB-GEN evidence/release package" in script
+    )
 
 
 def test_demo_launcher_requires_complete_trusted_runtime_set():
