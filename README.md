@@ -35,6 +35,7 @@ Evidence and release gates:
 - **[ARTIFACT_MANIFEST_TEMPLATE.md](ARTIFACT_MANIFEST_TEMPLATE.md)** — source/artifact/environment/hash manifest template.
 - **[RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)** — pre-publication gate for releases, benchmark claims and public communications.
 - **[SECURITY.md](SECURITY.md)** — trusted-artifact and serialized-model security boundary.
+- **[CONNECTOME_EDGE_RND.md](CONNECTOME_EDGE_RND.md)** — separate hypothesis-driven research plan for sparse, modular, connectome-inspired Edge AI.
 
 ### 🎥 Live demo
 [![AB-GEN Live Demo](https://img.youtube.com/vi/5gtssh9VvI4/maxresdefault.jpg)](https://youtu.be/5gtssh9VvI4)
@@ -140,6 +141,7 @@ At present, the public repository does not distribute the validated V24 Slow Bur
 - `ARTIFACT_MANIFEST_TEMPLATE.md` — immutable artifact/evidence manifest template
 - `RELEASE_CHECKLIST.md` — release and public-claim gate
 - `SECURITY.md` — serialized-artifact and deployment security policy
+- `CONNECTOME_EDGE_RND.md` — experimental connectome-inspired Edge-AI research protocol and stop conditions
 
 ---
 
@@ -149,7 +151,9 @@ AB-GEN is not currently positioned as a replacement for state-of-the-art CNNs or
 
 > **How far can a geometric/spectral ensemble architecture go in computer vision while reducing computational cost and retaining a more inspectable decision pipeline?**
 
-A second, explicitly experimental research line is being prepared around **sparse, modular and bio-inspired computation for Edge AI**. It is intentionally separated from the recovered historical baseline so new research cannot contaminate the reproducibility audit.
+A second, explicitly experimental research line is now documented around **sparse, modular and connectome-inspired computation for Edge AI**. It is intentionally separated from the recovered historical baseline so new research cannot contaminate the reproducibility audit. Its first requirement is not biological plausibility but a controlled comparison against dense, random, degree-preserving and current AB-GEN baselines.
+
+See **[CONNECTOME_EDGE_RND.md](CONNECTOME_EDGE_RND.md)** for hypotheses, controls, batch-invariance gates, metrics and stop conditions.
 
 The next meaningful milestone is not a marketing number; it is a third party being able to reproduce the same result from a clean environment.
 
