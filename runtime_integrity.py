@@ -16,11 +16,13 @@ from tools.artifact_manifest import load_manifest, verify_manifest
 
 
 TRUTHY = {"1", "true", "yes", "on"}
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_ARTIFACT_DIR = BASE_DIR / "artifacts"
 
 _RUNTIME_SPECS = {
-    "model_bundle": ("ABGEN_BUNDLE_PATH", "abgen_bundle.pkl"),
-    "sample_data": ("ABGEN_SAMPLE_DATA_PATH", "sample_data.pkl"),
-    "training_module": ("ABGEN_TRAINING_MODULE_PATH", "training_module.py"),
+    "model_bundle": ("ABGEN_BUNDLE_PATH", DEFAULT_ARTIFACT_DIR / "abgen_bundle.pkl"),
+    "sample_data": ("ABGEN_SAMPLE_DATA_PATH", DEFAULT_ARTIFACT_DIR / "sample_data.pkl"),
+    "training_module": ("ABGEN_TRAINING_MODULE_PATH", DEFAULT_ARTIFACT_DIR / "training_module.py"),
 }
 
 
@@ -32,7 +34,7 @@ def required_runtime_paths(env: Mapping[str, str] | None = None) -> dict[str, Pa
     """Return manifest-label -> artifact-path mapping for the current runtime."""
     env = _environment(env)
     return {
-        label: Path(env.get(variable, default_path))
+        label: Path(env.get(variable, str(default_path)))
         for label, (variable, default_path) in _RUNTIME_SPECS.items()
     }
 
@@ -52,7 +54,8 @@ def manifest_required(env: Mapping[str, str] | None = None) -> bool:
 
 def runtime_manifest_path(env: Mapping[str, str] | None = None) -> Path:
     env = _environment(env)
-    return Path(env.get("ABGEN_ARTIFACT_MANIFEST_PATH", "runtime-manifest.json"))
+    default_path = DEFAULT_ARTIFACT_DIR / "runtime-manifest.json"
+    return Path(env.get("ABGEN_ARTIFACT_MANIFEST_PATH", str(default_path)))
 
 
 def verify_runtime_manifest(env: Mapping[str, str] | None = None) -> list[str]:
@@ -81,5 +84,8 @@ def runtime_preflight_errors(env: Mapping[str, str] | None = None) -> list[str]:
     env = _environment(env)
     missing = missing_runtime_paths(env)
     if missing:
-        return [f"required runtime artifact missing: {label} -> {path}" for label, path in missing.items()]
+        return [
+            f"required runtime artifact missing: {label} -> {path}"
+            for label, path in missing.items()
+        ]
     return verify_runtime_manifest(env)
