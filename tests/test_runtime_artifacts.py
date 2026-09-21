@@ -8,6 +8,23 @@ from tools.artifact_manifest import create_manifest, write_manifest
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_default_runtime_paths_are_repository_artifacts_directory():
+    paths = runtime_integrity.required_runtime_paths({})
+
+    assert paths["model_bundle"] == ROOT / "artifacts" / "abgen_bundle.pkl"
+    assert paths["sample_data"] == ROOT / "artifacts" / "sample_data.pkl"
+    assert paths["training_module"] == ROOT / "artifacts" / "training_module.py"
+    assert runtime_integrity.runtime_manifest_path({}) == ROOT / "artifacts" / "runtime-manifest.json"
+
+
+def test_engine_import_does_not_eagerly_load_compatibility_code():
+    source = (ROOT / "engine.py").read_text(encoding="utf-8")
+
+    assert "_training_mod = _register_training_classes()" not in source
+    assert "ABGEN_ALLOW_LEGACY_PARENT_MODULE" in source
+    assert "artifacts\", \"training_module.py" in source
+
+
 def test_docker_image_does_not_copy_private_or_parent_artifacts():
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
 
