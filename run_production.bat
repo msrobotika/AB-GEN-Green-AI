@@ -1,13 +1,14 @@
 @echo off
 setlocal
+cd /d "%~dp0"
 title AB-GEN Research Demo - Production Server
 color 0A
 
 echo.
 echo  =============================================================
 echo   AB-GEN Research Demo - Production Diagnostic Deployment
- echo   Waitress + trusted artifact manifest preflight
- echo  =============================================================
+echo   Waitress + trusted artifact manifest preflight
+echo  =============================================================
 echo.
 
 :: Optional host / port / threads overrides may be set before calling this file.
@@ -37,7 +38,7 @@ if not exist "%ABGEN_ARTIFACT_MANIFEST_PATH%" goto :missing_manifest
 echo  [1/3] Runtime artifact set and manifest found.
 
 :: Step 3: Install the explicit production dependency contract
- echo  [2/3] Installing production dependencies...
+echo  [2/3] Installing production dependencies...
 python -m pip install -q -r requirements_prod.txt
 if %errorlevel% neq 0 (
     echo  [ERROR] Failed to install production dependencies.
@@ -47,7 +48,7 @@ if %errorlevel% neq 0 (
 :: Step 4: serve.py verifies hashes before deserialization and requires Waitress.
 echo.
 echo  [3/3] Launching AB-GEN production diagnostic server...
-echo  Open your browser at: http://localhost:%ABGEN_PORT%
+echo  Open your browser at: http://%ABGEN_HOST%:%ABGEN_PORT%
 echo  Press Ctrl+C to stop.
 echo.
 python serve.py
