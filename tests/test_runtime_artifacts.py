@@ -2,6 +2,7 @@ from pathlib import Path
 
 import docker_entrypoint
 import engine
+from tools.artifact_manifest import create_manifest, write_manifest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,17 +14,21 @@ def test_docker_image_does_not_copy_private_or_parent_artifacts():
     assert "COPY ../" not in dockerfile
     assert "COPY abgen_bundle.pkl" not in dockerfile
     assert "COPY sample_data.pkl" not in dockerfile
+    assert "COPY tools/ tools/" in dockerfile
     assert 'VOLUME ["/artifacts"]' in dockerfile
+    assert "ABGEN_REQUIRE_MANIFEST=1" in dockerfile
     assert 'CMD ["python", "docker_entrypoint.py"]' in dockerfile
 
 
-def test_compose_mounts_runtime_artifacts_read_only():
+def test_compose_mounts_runtime_artifacts_read_only_and_requires_manifest():
     compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
 
     assert "./artifacts:/artifacts:ro" in compose
     assert "ABGEN_BUNDLE_PATH=/artifacts/abgen_bundle.pkl" in compose
     assert "ABGEN_SAMPLE_DATA_PATH=/artifacts/sample_data.pkl" in compose
     assert "ABGEN_TRAINING_MODULE_PATH=/artifacts/training_module.py" in compose
+    assert "ABGEN_ARTIFACT_MANIFEST_PATH=/artifacts/runtime-manifest.json" in compose
+    assert "ABGEN_REQUIRE_MANIFEST=1" in compose
 
 
 def test_runtime_preflight_reports_missing_files(tmp_path):
@@ -40,6 +45,53 @@ def test_runtime_preflight_reports_missing_files(tmp_path):
         Path(path).write_bytes(b"trusted-test-placeholder")
 
     assert docker_entrypoint.missing_runtime_paths(env) == {}
+
+
+def test_runtime_manifest_verification_passes_then_detects_tamper(tmp_path):
+    bundle = tmp_path / "abgen_bundle.pkl"
+    samples = tmp_path / "sample_data.pkl"
+    module = tmp_path / "training_module.py"
+    manifest_path = tmp_path / "runtime-manifest.json"
+
+    bundle.write_bytes(b"bundle-v1")
+    samples.write_bytes(b"samples-v1")
+    module.write_text("VALUE = 1\n", encoding="utf-8")
+
+    artifacts = {
+        "model_bundle": bundle,
+        "sample_data": samples,
+        "training_module": module,
+    }
+    write_manifest(create_manifest(artifacts), manifest_path)
+
+    env = {
+        "ABGEN_BUNDLE_PATH": str(bundle),
+        "ABGEN_SAMPLE_DATA_PATH": str(samples),
+        "ABGEN_TRAINING_MODULE_PATH": str(module),
+        "ABGEN_ARTIFACT_MANIFEST_PATH": str(manifest_path),
+        "ABGEN_REQUIRE_MANIFEST": "1",
+    }
+
+    assert docker_entrypoint.verify_runtime_manifest(env) == []
+
+    bundle.write_bytes(b"bundle-tampered")
+    errors = docker_entrypoint.verify_runtime_manifest(env)
+    assert errors
+    assert any("SHA-256 mismatch" in error or "size mismatch" in error for error in errors)
+
+
+def test_manifest_requirement_can_only_be_disabled_explicitly(tmp_path):
+    env = {
+        "ABGEN_BUNDLE_PATH": str(tmp_path / "abgen_bundle.pkl"),
+        "ABGEN_SAMPLE_DATA_PATH": str(tmp_path / "sample_data.pkl"),
+        "ABGEN_TRAINING_MODULE_PATH": str(tmp_path / "training_module.py"),
+        "ABGEN_REQUIRE_MANIFEST": "0",
+    }
+    for key in ("ABGEN_BUNDLE_PATH", "ABGEN_SAMPLE_DATA_PATH", "ABGEN_TRAINING_MODULE_PATH"):
+        Path(env[key]).write_bytes(b"placeholder")
+
+    assert docker_entrypoint.manifest_required(env) is False
+    assert docker_entrypoint.verify_runtime_manifest(env) == []
 
 
 def test_explicit_serialization_module_path_is_supported(tmp_path, monkeypatch):
