@@ -1,61 +1,61 @@
-"""
-AB-GEN Research Demo - Flask server.
+"""AB-GEN Research Demo - Flask server.
 
-The demo exposes live session/inference metrics separately from reported
-experimental results and historical energy reference values.
+This application is a diagnostic interface over recovered PCA-cache artifacts.
+It is not an end-to-end RAW->prediction reproduction and it deliberately does
+not expose unvalidated historical energy constants as live metrics.
 """
 
-import os
-import io
-import random
-import pickle
 import base64
+import io
+import os
+import pickle
 import threading
+
 import numpy as np
 from PIL import Image
-from flask import Flask, render_template, jsonify
+from flask import Flask, jsonify, render_template
+
 from engine import ABGenEngine, CIFAR10_CLASSES
 
 # Runtime artifacts can be supplied explicitly (for example by a read-only
 # Docker volume) while preserving the historical local-file defaults.
 BUNDLE_PATH = os.environ.get("ABGEN_BUNDLE_PATH", "abgen_bundle.pkl")
 SAMPLE_DATA_PATH = os.environ.get("ABGEN_SAMPLE_DATA_PATH", "sample_data.pkl")
-REFERENCE_ACCURACY_THRESHOLD = 80.0
-REPORTED_V24_ACCURACY = 80.14
+
 REPORTED_V24_VERSION = "V24 Slow Burn"
+REPORTED_V24_ACCURACY = 80.14
+RECOVERED_ELITE_ACCURACY = 80.17
+RECOVERED_M5_ACCURACY = 79.55
+RECOVERED_M4_ACCURACY = 78.05
 
-# Historical/project Green AI reference values.
-# These are NOT live power measurements and remain pending controlled re-benchmarking.
-J_PER_INFERENCE = 0.00031
-CNN_J_INFERENCE = 0.0042
-CO2_PER_KWH = 0.233
-INFERENCE_PRICE = 0.00012
-
-EVIDENCE_STATUS = "reported_pending_reproduction"
-ENERGY_METRIC_STATUS = "historical_reference_not_live_measurement"
-SCORE_METRIC_STATUS = "normalized_decision_scores_uncalibrated"
+EVIDENCE_STATUS = "reported_historical_not_reproduced"
 INPUT_MODE = "cached_pca_vectors"
+SCORE_METRIC_STATUS = "normalized_decision_scores_uncalibrated"
+ENERGY_METRIC_STATUS = "unavailable_pending_controlled_measurement"
+INFERENCE_PATH_STATUS = "recovered_historical_path_not_clean_baseline"
+BATCH_INVARIANCE_STATUS = "known_failure_in_targeted_audit"
 
 app = Flask(__name__)
 engine = None
 sample_data = None
 
-# Session stats (in-memory)
+# Session statistics are diagnostic only. Batch selection is deterministic:
+# after reset, calls traverse cached samples in stable stored order.
 session_stats = {
     "total_images": 0,
     "total_correct": 0,
     "total_batches": 0,
     "total_latency_ms": 0.0,
-    "class_correct": [0] * 10,
-    "class_total": [0] * 10,
+    "class_correct": [0] * len(CIFAR10_CLASSES),
+    "class_total": [0] * len(CIFAR10_CLASSES),
     "history_acc": [],
-    "energy_saved_j": 0.0,
+    "batch_cursor": 0,
 }
 session_stats_lock = threading.RLock()
 
 
 def img_to_b64(arr_rgb_uint8: np.ndarray, scale: int = 4) -> str:
-    """Convert (32, 32, 3) uint8 ndarray to a base64-encoded PNG."""
+    """Convert a 32x32 RGB uint8 array to a base64-encoded PNG."""
     img = Image.fromarray(arr_rgb_uint8.astype(np.uint8), "RGB")
     img = img.resize((32 * scale, 32 * scale), Image.NEAREST)
     buf = io.BytesIO()
@@ -64,6 +64,7 @@ def img_to_b64(arr_rgb_uint8: np.ndarray, scale: int = 4) -> str:
 
 
 def load_resources():
+    """Load trusted runtime artifacts supplied by the operator."""
     global engine, sample_data
     print(f"[SERVER] Loading AB-GEN engine bundle: {BUNDLE_PATH}")
     engine = ABGenEngine(BUNDLE_PATH)
@@ -74,7 +75,7 @@ def load_resources():
 
 
 def reset_session_stats():
-    """Atomically restore session counters and fixed per-class array sizes."""
+    """Atomically restore counters, fixed class arrays and deterministic cursor."""
     with session_stats_lock:
         session_stats["total_images"] = 0
         session_stats["total_correct"] = 0
@@ -83,11 +84,30 @@ def reset_session_stats():
         session_stats["class_correct"] = [0] * len(CIFAR10_CLASSES)
         session_stats["class_total"] = [0] * len(CIFAR10_CLASSES)
         session_stats["history_acc"].clear()
-        session_stats["energy_saved_j"] = 0.0
+        session_stats["batch_cursor"] = 0
 
 
-def record_session_batch(y_true, preds, latency_ms: float, batch_acc: float, saved_j: float):
-    """Atomically record one batch and return a consistent session snapshot."""
+def next_batch_indices(total: int, batch_size: int) -> np.ndarray:
+    """Return the next deterministic cached-sample indices and advance the cursor.
+
+    The sequence is fully determined by stored sample order and session reset.
+    This removes UI-level random sampling from reproducibility diagnostics.
+    """
+    if total <= 0:
+        raise ValueError("sample cache is empty")
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive")
+
+    n = min(int(batch_size), int(total))
+    with session_stats_lock:
+        start = int(session_stats["batch_cursor"]) % total
+        idx = (np.arange(n, dtype=np.int64) + start) % total
+        session_stats["batch_cursor"] = int((start + n) % total)
+    return idx
+
+
+def record_session_batch(y_true, preds, latency_ms: float, batch_acc: float):
+    """Atomically record one diagnostic batch and return a consistent snapshot."""
     n = int(len(y_true))
     correct = int((preds == y_true).sum())
 
@@ -103,9 +123,6 @@ def record_session_batch(y_true, preds, latency_ms: float, batch_acc: float, sav
             session_stats["class_total"][c] += 1
             if preds[i] == y_true[i]:
                 session_stats["class_correct"][c] += 1
-
-        # Retained for UI compatibility; this is reference-derived, not measured energy.
-        session_stats["energy_saved_j"] += float(saved_j)
 
         session_acc = (
             session_stats["total_correct"] /
@@ -123,13 +140,29 @@ def record_session_batch(y_true, preds, latency_ms: float, batch_acc: float, sav
             "session_acc": session_acc,
             "session_images": session_stats["total_images"],
             "session_batches": batches,
-            "reference_energy_saved_mj": round(session_stats["energy_saved_j"] * 1000, 3),
-            # Legacy compatibility alias. See energy_metric_status in API payload.
-            "session_energy_saved_mj": round(session_stats["energy_saved_j"] * 1000, 3),
-            "avg_latency_ms": round(session_stats["total_latency_ms"] / max(batches, 1), 1),
+            "avg_latency_ms": round(
+                session_stats["total_latency_ms"] / max(batches, 1), 1
+            ),
             "class_acc": class_acc,
             "history_acc": list(session_stats["history_acc"][-20:]),
         }
+
+
+def _evidence_payload() -> dict:
+    """Return explicit non-overlapping evidence states for public/API use."""
+    return {
+        "historical_reported": {
+            "version": REPORTED_V24_VERSION,
+            "accuracy_pct": REPORTED_V24_ACCURACY,
+            "status": EVIDENCE_STATUS,
+        },
+        "recovered": {
+            "elite_slow_burn_cache_accuracy_pct": RECOVERED_ELITE_ACCURACY,
+            "m5_master_reconstructed_accuracy_pct": RECOVERED_M5_ACCURACY,
+            "m4_cache_accuracy_pct": RECOVERED_M4_ACCURACY,
+            "status": "recovered_or_reconstructed_not_clean_reproduction",
+        },
+    }
 
 
 @app.route("/")
@@ -137,16 +170,16 @@ def index():
     return render_template(
         "index.html",
         total_samples=len(sample_data["y"]),
-        accuracy_target=REFERENCE_ACCURACY_THRESHOLD,
         classes=CIFAR10_CLASSES,
     )
 
 
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
-    """Run inference over a random batch of cached CIFAR-10 PCA samples."""
-    n = min(12, len(sample_data["y"]))
-    idx = random.sample(range(len(sample_data["y"])), n)
+    """Run the recovered inference path over the next deterministic cached batch."""
+    total_samples = len(sample_data["y"])
+    n = min(12, total_samples)
+    idx = next_batch_indices(total_samples, n)
 
     x_batch = sample_data["x_pca"][idx]
     y_true = sample_data["y"][idx]
@@ -155,21 +188,14 @@ def analyze():
 
     correct = int((preds == y_true).sum())
     batch_acc = correct / n * 100.0
-
-    # Historical/reference constants only; not live power measurement.
-    reference_energy_j = J_PER_INFERENCE * n
-    reference_saved_j = (CNN_J_INFERENCE - J_PER_INFERENCE) * n
-    reference_co2_saved_ug = (reference_saved_j / 3_600_000) * CO2_PER_KWH * 1e9
-
     session_snapshot = record_session_batch(
         y_true=y_true,
         preds=preds,
         latency_ms=latency_ms,
         batch_acc=batch_acc,
-        saved_j=reference_saved_j,
     )
 
-    throughput = n / (latency_ms / 1000.0)
+    throughput = n / max(latency_ms / 1000.0, 1e-12)
 
     results = []
     for i, ix in enumerate(idx):
@@ -180,8 +206,6 @@ def analyze():
             top3.append({
                 "class": CIFAR10_CLASSES[j],
                 "score_pct": score_pct,
-                # Legacy compatibility alias; not a calibrated probability.
-                "prob": score_pct,
             })
 
         max_score_pct = round(float(scores[i].max()) * 100, 1)
@@ -190,14 +214,10 @@ def analyze():
             "true_label": CIFAR10_CLASSES[int(y_true[i])],
             "pred_label": CIFAR10_CLASSES[int(preds[i])],
             "score_pct": max_score_pct,
-            # Legacy compatibility alias; see score_metric_status.
-            "confidence": max_score_pct,
             "correct": bool(preds[i] == y_true[i]),
             "image_b64": img_b64,
             "top3": top3,
         })
-
-    reference_saving_pct = round((reference_saved_j / (CNN_J_INFERENCE * n)) * 100, 1)
 
     return jsonify({
         "batch_accuracy": round(batch_acc, 1),
@@ -208,20 +228,12 @@ def analyze():
         "input_mode": INPUT_MODE,
         "score_metric_status": SCORE_METRIC_STATUS,
         "energy_metric_status": ENERGY_METRIC_STATUS,
-        "reference_energy_uj": round(reference_energy_j * 1e6, 1),
-        "reference_energy_saved_uj": round(reference_saved_j * 1e6, 1),
-        "reference_co2_saved_ug": round(reference_co2_saved_ug, 4),
-        "reference_saving_pct": reference_saving_pct,
-        # Legacy compatibility fields. All are reference-derived, not measured live.
-        "energy_uj": round(reference_energy_j * 1e6, 1),
-        "energy_saved_uj": round(reference_saved_j * 1e6, 1),
-        "co2_saved_ug": round(reference_co2_saved_ug, 4),
-        "saving_pct": reference_saving_pct,
+        "inference_path_status": INFERENCE_PATH_STATUS,
+        "batch_invariance_status": BATCH_INVARIANCE_STATUS,
+        "batch_indices": [int(x) for x in idx],
         "session_acc": round(session_snapshot["session_acc"], 1),
         "session_images": session_snapshot["session_images"],
         "session_batches": session_snapshot["session_batches"],
-        "reference_energy_saved_mj": session_snapshot["reference_energy_saved_mj"],
-        "session_energy_saved_mj": session_snapshot["session_energy_saved_mj"],
         "avg_latency_ms": session_snapshot["avg_latency_ms"],
         "class_acc": session_snapshot["class_acc"],
         "history_acc": session_snapshot["history_acc"],
@@ -232,18 +244,16 @@ def analyze():
 
 @app.route("/api/status")
 def status():
-    """Expose runtime status and explicit evidence semantics."""
+    """Expose runtime state and evidence semantics without claim aliases."""
     return jsonify({
         "model": "AB-GEN Research Demo",
         "dataset": "CIFAR-10",
-        "reported_version": REPORTED_V24_VERSION,
-        "reported_accuracy": REPORTED_V24_ACCURACY,
-        # Legacy compatibility field; interpretation is explicit in accuracy_status.
-        "accuracy": REPORTED_V24_ACCURACY,
-        "accuracy_status": EVIDENCE_STATUS,
+        "evidence": _evidence_payload(),
         "input_mode": INPUT_MODE,
         "score_metric_status": SCORE_METRIC_STATUS,
         "energy_metric_status": ENERGY_METRIC_STATUS,
+        "inference_path_status": INFERENCE_PATH_STATUS,
+        "batch_invariance_status": BATCH_INVARIANCE_STATUS,
         "samples": len(sample_data["y"]),
         "device": "CUDA" if __import__("torch").cuda.is_available() else "CPU",
         "ready": True,
