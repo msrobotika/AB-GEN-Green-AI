@@ -1,5 +1,6 @@
 # AB-GEN Research Demo — Docker Compose
 # Runtime artifacts are deliberately kept outside the image and mounted read-only.
+# Startup fails before deserialization if required files or manifest verification fail.
 
 services:
   abgen:
@@ -15,6 +16,8 @@ services:
       - ABGEN_BUNDLE_PATH=/artifacts/abgen_bundle.pkl
       - ABGEN_SAMPLE_DATA_PATH=/artifacts/sample_data.pkl
       - ABGEN_TRAINING_MODULE_PATH=/artifacts/training_module.py
+      - ABGEN_ARTIFACT_MANIFEST_PATH=/artifacts/runtime-manifest.json
+      - ABGEN_REQUIRE_MANIFEST=1
     volumes:
       - ./artifacts:/artifacts:ro
     healthcheck:
@@ -25,4 +28,4 @@ services:
       start_period: 90s
 
     # GPU support is intentionally not implicit. A validated GPU benchmark/runtime
-    # should document its image, drivers and container-toolkit configuration.
+    # must document image, drivers and container-toolkit configuration separately.
