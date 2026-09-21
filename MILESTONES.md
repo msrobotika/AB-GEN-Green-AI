@@ -4,6 +4,15 @@ This file tracks public milestones for AB-GEN using an evidence-first standard. 
 
 ## Verified engineering milestones
 
+### 2026-09-21 — Recovery audit produced executable evidence
+- Recovered **M4** evaluation from the PCA-cache path at **7,805 / 10,000 = 78.05%**, matching the documented project result.
+- Completed **M5 MASTER** evaluation with the original frozen N1 and reconstructed polynomial N2 at **7,955 / 10,000 = 79.55%**; saved prediction counts were checked.
+- Evaluated the recovered **Elite / Slow Burn** bundle from cache at **8,017 / 10,000 = 80.17%**.
+- The historical **80.14% V24 Slow Burn** headline remains **REPORTED** because the exact historical RAW→PCA transformer, split, script and prediction lineage have not yet been recovered end to end.
+- Demonstrated a deterministic batch-dependent inference path on a targeted set of 32 low-margin Ridge samples: 18 changed class between full-batch and individual inference, 17 changed between full-batch and batch-32, while exact repeated batches produced zero changes.
+- The recovered engine resets its RNG per call and assigns noise according to batch shape/position. This demonstrates batch dependence for the targeted subset, but does not establish that it explains the 80.14% versus 80.17% difference or generalize to the whole test set.
+- Recovered elite fingerprints include Fisher and centroid structures matching MASTER, N2 scaler metadata for 21,000 rows, an MLP configured for 250 epochs with BatchNorm counters at 3,750, and 50 `logspace(-3,5,50)` N2 alpha candidates. These are provenance clues, not proof of exact historical split identity.
+
 ### 2026-09-21 — Baseline acceptance and leakage gates established
 - Added `BASELINE_ACCEPTANCE.md` to separate **Reported**, **Recovered**, **Pipeline reconstructed**, **Metric reproduced**, **Prediction reproduced**, and **Reproduced** evidence states.
 - Added `LEAKAGE_AUDIT_TEMPLATE.md` with mandatory `PASS` / `FAIL` / `UNKNOWN` review across dataset lineage, PCA, Fisher weighting, class centroids, N1 model selection, N2 stacking, augmentation/noise, calibration, and final-test access.
@@ -67,22 +76,40 @@ Internal project documentation records:
 - Version: **V24 Slow Burn**
 - Runtime recorded: **~420 min**
 
-Status: **reported result, pending full reproduction from the original training source and artifacts**.
+Status: **REPORTED historical result, pending exact reproduction from the original RAW→PCA→model path**.
 
-A rounded 80.14% match by itself will not be treated as exact historical reproduction. The project now distinguishes artifact recovery, pipeline reconstruction, metric reproduction and prediction-level reproduction where historical outputs are available.
+A recovered Elite / Slow Burn bundle currently evaluates to **80.17%** from the PCA-cache path. That result is deliberately kept separate from the historical 80.14% claim until the exact historical transformer, split, script and prediction-level lineage are recovered.
+
+A rounded or nearby metric match by itself will not be treated as exact historical reproduction. The project distinguishes artifact recovery, pipeline reconstruction, metric reproduction and prediction-level reproduction where historical outputs are available.
+
+### CIFAR-10 — M5 MASTER reconstructed path
+- Accuracy: **79.55%**
+- Count: **7,955 / 10,000**
+- Configuration: original N1 frozen, polynomial N2 reconstructed from recovered project evidence.
+
+Status: **reconstructed and executed; not equivalent to exact historical V24 reproduction**.
 
 ### CIFAR-10 — V23 M4 Purist
 Internal project documentation records:
 - Accuracy: **78.05%**
 - Runtime recorded: **481.5 min**
 
-Status: **reported result, pending reproduction**.
+Current recovery status: **78.05% matched from the recovered PCA-cache inference path**. Full raw-image training reproduction remains pending.
 
 ### MNIST — Universal V24
 Internal project documentation records:
 - Accuracy: **97.79%**
 
 Status: **reported result, pending reproduction**.
+
+## Current audit risks and open questions
+
+- **RAW→PCA provenance:** the cache exists, but the exact historical transformer and preprocessing lineage are not yet fully recovered.
+- **Leakage:** historical MASTER code computes some class-dependent structures / augmentation logic before the final train-validation split. This requires independent audit; the same indices or defect must not be attributed automatically to every elite route.
+- **Batch dependence:** demonstrated on a targeted low-margin subset and traced to per-call RNG/noise assignment. Scope and impact on the complete test set remain unproven.
+- **Historical 80.14% identity:** exact V24 script, split and prediction lineage remain unresolved.
+- **Energy:** historical energy figures remain unvalidated; controlled measurement is still required, and at least one million-inference savings calculation was found to contain a factor-of-1,000 discrepancy.
+- **XAI:** geometric/PCA visualisation alone is not evidence of faithful explanation. Attribution fidelity must be tested against the actual decision path.
 
 ## Validation gates for future public claims
 
@@ -116,17 +143,19 @@ A Medical/XAI milestone should additionally include:
 
 ## Roadmap
 
-- Recover and freeze V24 Slow Burn as the golden baseline.
-- Generate the first immutable V24 artifact manifest and preserve the originals unchanged.
-- Resolve the historical N1/N2 path and M4/M5 probability/noise behavior.
-- Complete the formal leakage audit.
-- Reproduce the 80.14% CIFAR-10 result from clean source and classify the evidence state precisely.
+- Recover the exact RAW→PCA transformer, preprocessing lineage and environment.
+- Link the historical V24 Slow Burn 80.14% script, split, model artifacts and predictions to the recovered elite bundle.
+- Freeze originals and preserve SHA-256 provenance without modifying recovered source artifacts.
+- Complete the formal independent leakage audit.
+- Characterize batch sensitivity across batch size, sample position, batch composition and repeated deterministic runs.
+- Reproduce the exact historical 80.14% CIFAR-10 result from clean source and classify the evidence state precisely.
 - Freeze the dependency environment for the reproduced baseline.
 - Build a complete raw-image inference path.
 - Expand deterministic tests and CI to model/preprocessing fixtures and container smoke tests.
 - Execute the controlled Green AI benchmark suite.
 - Add calibration and reliability evaluation.
-- Develop class-conditioned AB-GEN attribution maps.
+- Validate explanation fidelity and develop class-conditioned AB-GEN attribution maps.
+- Keep future sparse/modular/bio-inspired Edge-AI research isolated from the historical baseline until the recovery audit is closed.
 - Package reproducible releases with checksums and environment locks.
 - Publish technical notes / preprint once the evidence package is complete.
 
