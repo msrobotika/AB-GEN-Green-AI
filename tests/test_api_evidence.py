@@ -1,8 +1,13 @@
 import app as app_module
 
 
+def _mark_runtime_ready(monkeypatch, labels=(0, 1, 2)):
+    monkeypatch.setattr(app_module, "sample_data", {"y": list(labels)})
+    monkeypatch.setattr(app_module, "engine", object())
+
+
 def test_status_exposes_separate_reported_and_recovered_evidence(monkeypatch):
-    monkeypatch.setattr(app_module, "sample_data", {"y": [0, 1, 2]})
+    _mark_runtime_ready(monkeypatch)
 
     client = app_module.app.test_client()
     response = client.get("/api/status")
@@ -33,8 +38,26 @@ def test_status_exposes_separate_reported_and_recovered_evidence(monkeypatch):
     assert data["ready"] is True
 
 
+def test_status_reports_not_ready_without_loaded_resources(monkeypatch):
+    monkeypatch.setattr(app_module, "sample_data", None)
+    monkeypatch.setattr(app_module, "engine", None)
+
+    data = app_module.app.test_client().get("/api/status").get_json()
+    assert data["samples"] == 0
+    assert data["ready"] is False
+
+
+def test_analyze_refuses_uninitialized_runtime(monkeypatch):
+    monkeypatch.setattr(app_module, "sample_data", None)
+    monkeypatch.setattr(app_module, "engine", None)
+
+    response = app_module.app.test_client().post("/api/analyze")
+    assert response.status_code == 503
+    assert response.get_json()["ready"] is False
+
+
 def test_status_does_not_expose_ambiguous_accuracy_or_energy_aliases(monkeypatch):
-    monkeypatch.setattr(app_module, "sample_data", {"y": [0]})
+    _mark_runtime_ready(monkeypatch, labels=(0,))
     data = app_module.app.test_client().get("/api/status").get_json()
 
     assert "accuracy" not in data
