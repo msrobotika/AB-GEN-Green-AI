@@ -34,7 +34,7 @@ The recovered engine resets its RNG on every inference call and assigns noise ac
 
 ## Immediate technical priority: Clean Baseline v1
 
-Historical recovery remains important for provenance, but the next scientifically defensible performance result must come from a **new clean baseline** with a completely controlled data boundary:
+Historical recovery remains important for provenance, but the next scientifically defensible performance result must come from a **new clean baseline** with a completely controlled data boundary. The execution gate is tracked in **issue #39**.
 
 1. start from raw CIFAR-10 data with immutable sample identities;
 2. define the train/validation/test split before any label-dependent fitting;
@@ -101,14 +101,27 @@ The public demo operates on cached PCA-projected inputs. It is a **diagnostic re
 
 ## Public demo boundary
 
+The public repository intentionally does **not** distribute the recovered private runtime artifacts. A fresh clone is therefore not a standalone model reproduction.
+
+A local diagnostic run requires this complete trusted set under `artifacts/`:
+
+- `artifacts/abgen_bundle.pkl`
+- `artifacts/sample_data.pkl`
+- `artifacts/training_module.py`
+- `artifacts/runtime-manifest.json`
+
+The manifest must match the artifact bytes and itself come from a trusted evidence/release package. Runtime preflight occurs before compatibility-module import or joblib/pickle deserialization in supported launch paths.
+
+Once that trusted set is present:
+
 ```bash
 pip install -r requirements_demo.txt
 python app.py
 ```
 
-The demo requires trusted runtime artifacts that are **not distributed** in the public repository. A fresh clone is therefore not a standalone model reproduction.
+On Windows, `run_demo.bat` applies the same `artifacts/` contract and anchors execution to the repository directory.
 
-The diagnostic UI now:
+The diagnostic UI:
 - traverses cached samples in deterministic stored order rather than randomly sampling them;
 - labels live accuracy as diagnostic only;
 - exposes normalized decision scores as uncalibrated scores, not probabilities;
@@ -119,20 +132,14 @@ The diagnostic UI now:
 
 The Docker image contains public application code only. Runtime model/data/compatibility artifacts are mounted read-only and remain trusted-code objects.
 
-Expected local runtime files:
-
-- `artifacts/abgen_bundle.pkl`
-- `artifacts/sample_data.pkl`
-- `artifacts/training_module.py`
-
-Before a validated release uses serialized artifacts, their provenance and SHA-256 hashes must be bound to an immutable accepted manifest.
+Docker uses the same four-file contract above, mounted at `/artifacts`. Before deserialization, startup verifies the runtime files against the configured trusted manifest and fails closed on missing files or byte mismatches.
 
 ```bash
 docker compose build
 docker compose up
 ```
 
-If required artifacts are absent, container preflight fails rather than guessing paths or downloading unknown serialized objects.
+Hash verification establishes byte integrity, not provenance by itself. Issue #21 remains open until the accepted manifest is bound to an immutable trusted release/evidence package.
 
 ---
 
@@ -154,14 +161,15 @@ A valid Green AI comparison must report, on identical hardware and equivalent ac
 
 ## Repository engineering
 
-- `engine.py` — recovered historical inference engine; batch-dependent noise behavior is explicitly documented.
+- `engine.py` — recovered historical inference engine; batch-dependent noise behavior is explicit and compatibility code is loaded only at engine creation, not module import.
 - `app.py` — diagnostic Flask API/UI backend with deterministic cache traversal.
-- `serve.py` — production WSGI entry point.
-- `docker_entrypoint.py` — runtime artifact preflight.
+- `runtime_integrity.py` — centralized fail-closed artifact/manifest integrity preflight.
+- `serve.py` — explicit Waitress production WSGI entry point.
+- `docker_entrypoint.py` — container preflight/launch boundary.
 - `artifacts/README.md` — trusted runtime-artifact contract.
 - `templates/` and `static/` — diagnostic UI.
 - `tests/` — regression tests for evidence semantics, public claims, runtime boundaries and deterministic tooling.
-- `.github/workflows/ci.yml` — CPU regression CI.
+- `.github/workflows/ci.yml` — CPU regression CI with dependency checks, compile checks, tests and exact environment snapshot artifact.
 - `AUDIT_NOTES.md` — current technical audit state.
 - `tools/artifact_manifest.py` — SHA-256 manifest creation/verification.
 - `tools/compare_predictions.py` — sample-level prediction comparator.
