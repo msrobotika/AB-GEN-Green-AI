@@ -4,17 +4,29 @@
 
 AB-GEN is an experimental computer-vision architecture built around dimensional reduction, Fisher weighting, multi-scale spectral features, geometric class structure, an N1 learner ensemble and an N2 polynomial meta-learner.
 
-The project is currently undergoing a reproducibility and engineering audit. Public claims are intentionally separated into **reported** and **reproduced/validated** results.
+The project is currently undergoing a reproducibility and engineering audit. Public claims are intentionally separated into **reported**, **recovered/reconstructed**, and **reproduced/validated** results.
 
 **Official research site:** https://msrobotikaabgenresearch.wordpress.com
 
 ## Validation status
 
-- **CIFAR-10 V24 Slow Burn:** internal project records report **80.14% accuracy** and a recorded runtime of approximately **420 min**.
-- **CIFAR-10 V23 M4 Purist:** internal project records report **78.05% accuracy**.
-- **MNIST Universal V24:** internal project records report **97.79% accuracy**.
-- Full reproduction from the original training source and artifacts is in progress.
+- **CIFAR-10 V24 Slow Burn — historical headline:** internal project records report **80.14% accuracy**. This remains **REPORTED**, not yet exactly reproduced from the original raw training pipeline.
+- **Elite / Slow Burn bundle — current recovery:** **8,017 / 10,000 = 80.17%** from the recovered PCA-cache path. This is a recovered execution result, not proof of exact historical V24 reproduction.
+- **M5 MASTER — reconstructed path:** **7,955 / 10,000 = 79.55%**, using the original frozen N1 with a reconstructed polynomial N2. The execution completed and prediction counts were verified.
+- **M4 original — recovered metric:** **7,805 / 10,000 = 78.05%**, matching the documented result when evaluated from the recovered PCA cache.
+- **MNIST Universal V24:** internal project records report **97.79% accuracy**; exact reproduction remains pending.
+- Full reproduction from raw images through the exact historical preprocessing/training path is **not yet certified**.
 - Previously published Green AI energy figures are being re-benchmarked under a controlled, reproducible measurement protocol.
+
+### Recovery finding: deterministic batch dependence
+
+During the 2026-09-21 recovery audit, 32 low-margin Ridge cases were selected **without labels** for a targeted invariance check. For those selected cases:
+
+- 18 predictions changed between full-batch and single-sample inference;
+- 17 changed between full-batch and a batch of 32;
+- repeating the exact same batch produced zero changes.
+
+The recovered engine resets its random generator per call and assigns noise according to batch shape/position, so a **batch-dependent inference path is demonstrated** for this targeted subset. The subset is not representative of the whole test set, and this finding has **not** been shown to explain the historical 80.14% versus recovered 80.17% difference.
 
 Evidence and release gates:
 
@@ -46,21 +58,24 @@ The public inference engine operates on PCA-projected inputs and reconstructs th
 
 ## Current audit priorities
 
-1. Recover and freeze **V24 Slow Burn** as the golden baseline.
-2. Verify train/validation/test separation and rule out leakage.
-3. Reproduce the reported **80.14% CIFAR-10** result from clean source.
-4. Persist the exact preprocessing/PCA artifacts required for standalone inference.
-5. Extend deterministic tests and CI beyond the first regression test.
-6. Build a raw-image end-to-end inference path.
+1. Recover the exact **RAW → PCA** transformer, preprocessing lineage and environment used by the historical runs.
+2. Link the exact **V24 Slow Burn 80.14%** script, split, predictions and model artifacts to the recovered elite bundle.
+3. Complete an independent leakage audit, keeping historical reconstruction separate from clean validation.
+4. Characterize the demonstrated batch-dependent noise path across batch size, position, composition and deterministic repeats.
+5. Freeze exact dependency versions, seeds, dtypes, feature ordering and artifact hashes for every recovered path.
+6. Build a raw-image end-to-end inference path that does not depend on undocumented cache state.
 7. Evaluate calibration using ECE, Brier score, NLL and reliability diagrams.
-8. Measure energy on identical hardware and inference boundaries against baselines.
-9. Package reproducible releases with environment locks, hashes and benchmark metadata.
+8. Measure energy on identical hardware and inference boundaries against controlled baselines.
+9. Validate XAI fidelity against the actual decision path rather than treating PCA/geometric visualisation alone as proof of explanation.
+10. Package reproducible releases with environment locks, hashes and benchmark metadata.
 
 ---
 
 ## Green AI benchmark status
 
 Earlier project material reports approximately **0.31 mJ/inference** for AB-GEN and a large reduction relative to a ResNet-18 reference. These values are retained as **historical/reported project figures**, not as independently reproduced measurements.
+
+The current audit also found that at least one historical million-inference energy-saving calculation contains a factor-of-1,000 discrepancy. No public Green AI claim should therefore be promoted until the controlled benchmark protocol is executed on measured hardware.
 
 The validation benchmark will separate:
 - model-only inference;
@@ -133,6 +148,8 @@ At present, the public repository does not distribute the validated V24 Slow Bur
 AB-GEN is not currently positioned as a replacement for state-of-the-art CNNs or Vision Transformers on raw accuracy alone. The research question is different:
 
 > **How far can a geometric/spectral ensemble architecture go in computer vision while reducing computational cost and retaining a more inspectable decision pipeline?**
+
+A second, explicitly experimental research line is being prepared around **sparse, modular and bio-inspired computation for Edge AI**. It is intentionally separated from the recovered historical baseline so new research cannot contaminate the reproducibility audit.
 
 The next meaningful milestone is not a marketing number; it is a third party being able to reproduce the same result from a clean environment.
 
