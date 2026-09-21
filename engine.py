@@ -10,6 +10,11 @@ a noise-averaging step because changing it would alter the recovered behavior.
 A targeted audit has shown that this mechanism can make predictions depend on
 batch shape/position. That behavior is documented, not endorsed as a clean
 inference design.
+
+Security note: importing this module does not import compatibility modules or
+deserialize model artifacts. Compatibility code is loaded only when an engine
+instance is created, after validated application launch paths have completed
+the runtime-integrity preflight.
 """
 
 import importlib.util
@@ -21,6 +26,9 @@ import joblib
 import numpy as np
 import torch
 import torch.nn.functional as F
+
+
+TRUTHY = {"1", "true", "yes", "on"}
 
 
 def _load_training_module(module_path: str):
@@ -35,43 +43,42 @@ def _load_training_module(module_path: str):
 
 
 def _register_training_classes():
-    """Register classes required by legacy joblib bundles.
+    """Register classes required by legacy joblib bundles at engine creation.
 
-    A validated deployment should set ``ABGEN_TRAINING_MODULE_PATH`` to an
-    explicitly supplied, trusted compatibility module. The parent-folder
-    search is retained only for backwards compatibility with the historical
-    local project layout and is never used by the container contract.
+    The normal runtime path is ``artifacts/training_module.py`` or an explicit
+    ``ABGEN_TRAINING_MODULE_PATH``. Historical parent-folder probing is disabled
+    by default and requires ``ABGEN_ALLOW_LEGACY_PARENT_MODULE=1``.
     """
-    explicit_path = os.environ.get("ABGEN_TRAINING_MODULE_PATH")
-    if explicit_path:
-        explicit_path = os.path.abspath(explicit_path)
-        if os.path.isfile(explicit_path):
-            return _load_training_module(explicit_path)
-        print(
-            "[AB-GEN] WARNING: ABGEN_TRAINING_MODULE_PATH does not exist: "
-            f"{explicit_path}"
-        )
+    demo_dir = os.path.dirname(os.path.abspath(__file__))
+    default_path = os.path.join(demo_dir, "artifacts", "training_module.py")
+    explicit_path = os.path.abspath(
+        os.environ.get("ABGEN_TRAINING_MODULE_PATH", default_path)
+    )
+
+    if os.path.isfile(explicit_path):
+        return _load_training_module(explicit_path)
+
+    print(
+        "[AB-GEN] WARNING: serialization compatibility module not found at: "
+        f"{explicit_path}"
+    )
+
+    allow_legacy = str(
+        os.environ.get("ABGEN_ALLOW_LEGACY_PARENT_MODULE", "0")
+    ).strip().lower() in TRUTHY
+    if not allow_legacy:
         return None
 
-    demo_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.dirname(demo_dir)
     for fname in ["AB-GEN_80_Accuracy.py", "AB-GEM + CNN.py"]:
         fpath = os.path.join(root_dir, fname)
         if os.path.isfile(fpath):
             print(
-                "[AB-GEN] WARNING: using historical parent-layout compatibility "
-                f"module: {fpath}"
+                "[AB-GEN] WARNING: explicit forensic override enabled; using "
+                f"historical parent-layout compatibility module: {fpath}"
             )
             return _load_training_module(fpath)
     return None
-
-
-_training_mod = _register_training_classes()
-if _training_mod is None:
-    print(
-        "[AB-GEN] WARNING: serialization compatibility module not found. "
-        "A legacy bundle that references training_module classes may fail to load."
-    )
 
 
 CIFAR10_CLASSES = [
@@ -167,6 +174,13 @@ class ABGenEngine:
     """Inference engine for trusted, recovered AB-GEN runtime artifacts."""
 
     def __init__(self, bundle_path: str):
+        compatibility_module = _register_training_classes()
+        if compatibility_module is None:
+            print(
+                "[AB-GEN] WARNING: no serialization compatibility module was "
+                "registered; legacy bundles referencing training_module may fail."
+            )
+
         print(f"[AB-GEN] Loading trusted model bundle from: {bundle_path}")
         bundle = joblib.load(bundle_path)
 
