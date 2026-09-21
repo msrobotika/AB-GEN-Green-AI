@@ -15,7 +15,7 @@ RUN useradd -m -s /bin/bash abgen
 WORKDIR /app
 
 COPY --from=builder /install /usr/local
-COPY engine.py app.py serve.py docker_entrypoint.py ./
+COPY engine.py app.py serve.py docker_entrypoint.py runtime_integrity.py ./
 COPY tools/ tools/
 COPY templates/ templates/
 COPY static/ static/
