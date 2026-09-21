@@ -2,10 +2,11 @@
 
 Production startup verifies configured runtime artifacts and their trusted
 manifest before `app.load_resources()` can deserialize the recovered bundle.
+The supported production server for this repository is Waitress, which is
+pinned by the production dependency contract rather than selected implicitly.
 """
 
 import os
-import subprocess
 import sys
 
 from runtime_integrity import runtime_preflight_errors
@@ -27,41 +28,21 @@ def main():
             print(f"  - {error}", file=sys.stderr)
         return 3
 
-    load_resources()
-
     try:
         from waitress import serve
-
-        print(f"[AB-GEN] Production server: Waitress ({THREADS} threads)")
-        print(f"[AB-GEN] Listening on http://{HOST}:{PORT}")
-        serve(app, host=HOST, port=PORT, threads=THREADS)
-        return 0
     except ImportError:
-        pass
-
-    try:
-        __import__("gunicorn")
-        print(f"[AB-GEN] Production server: Gunicorn ({THREADS} workers)")
-        print(f"[AB-GEN] Listening on http://{HOST}:{PORT}")
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "gunicorn",
-                "-b",
-                f"{HOST}:{PORT}",
-                "-w",
-                str(THREADS),
-                "--timeout",
-                "120",
-                "app:app",
-            ],
-            check=True,
+        print(
+            "[AB-GEN] Production startup refused: Waitress is not installed. "
+            "Install requirements_prod.txt.",
+            file=sys.stderr,
         )
-        return 0
-    except (ImportError, FileNotFoundError, subprocess.CalledProcessError) as exc:
-        print(f"[AB-GEN] Production server unavailable: {exc}", file=sys.stderr)
         return 4
+
+    load_resources()
+    print(f"[AB-GEN] Production server: Waitress ({THREADS} threads)")
+    print(f"[AB-GEN] Listening on http://{HOST}:{PORT}")
+    serve(app, host=HOST, port=PORT, threads=THREADS)
+    return 0
 
 
 if __name__ == "__main__":
