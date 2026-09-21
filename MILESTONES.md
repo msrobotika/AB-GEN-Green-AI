@@ -4,6 +4,20 @@ This file tracks public milestones for AB-GEN using an evidence-first standard. 
 
 ## Verified engineering milestones
 
+### 2026-09-21 — Baseline acceptance and leakage gates established
+- Added `BASELINE_ACCEPTANCE.md` to separate **Reported**, **Recovered**, **Pipeline reconstructed**, **Metric reproduced**, **Prediction reproduced**, and **Reproduced** evidence states.
+- Added `LEAKAGE_AUDIT_TEMPLATE.md` with mandatory `PASS` / `FAIL` / `UNKNOWN` review across dataset lineage, PCA, Fisher weighting, class centroids, N1 model selection, N2 stacking, augmentation/noise, calibration, and final-test access.
+- Added `tools/compare_predictions.py` for deterministic sample-level comparison by stable `sample_id`, including optional score comparison and JSON evidence output.
+- Added regression tests for row-order independence, label mismatches, score tolerances, sample-set mismatches, duplicate identifiers, and malformed scores.
+- Merged through PR #33 after CI passed.
+
+### 2026-09-21 — Controlled Green AI benchmark protocol added
+- Added `GREEN_AI_BENCHMARK_PROTOCOL.md` defining model-only, end-to-end, and optional cold-start measurement boundaries.
+- Defined hardware/environment freeze, warm-up, repeated-run statistics, batch-size matrix, synchronization, CPU/GPU separation, thermal/background-load controls, and raw evidence retention.
+- Defined an energy-evidence hierarchy prioritizing direct measurement and requiring joules/image alongside any percentage comparison.
+- Merged through PR #27.
+- This milestone establishes the protocol only; it does **not** validate historical energy-saving figures.
+
 ### 2026-09-20 — Repository audit initiated
 - Added a non-destructive technical audit of the public demo.
 - Identified reproducibility, calibration, energy-benchmark, deployment, and end-to-end inference gaps.
@@ -55,6 +69,8 @@ Internal project documentation records:
 
 Status: **reported result, pending full reproduction from the original training source and artifacts**.
 
+A rounded 80.14% match by itself will not be treated as exact historical reproduction. The project now distinguishes artifact recovery, pipeline reconstruction, metric reproduction and prediction-level reproduction where historical outputs are available.
+
 ### CIFAR-10 — V23 M4 Purist
 Internal project documentation records:
 - Accuracy: **78.05%**
@@ -79,7 +95,8 @@ A performance milestone should normally include:
 6. per-class metrics where relevant;
 7. repeated-run statistics where practical;
 8. exact dependency environment;
-9. model and preprocessing artifact hashes.
+9. model and preprocessing artifact hashes;
+10. prediction-level comparison when historical sample outputs exist.
 
 A Green AI milestone should additionally include:
 1. exact hardware and OS;
@@ -101,12 +118,13 @@ A Medical/XAI milestone should additionally include:
 
 - Recover and freeze V24 Slow Burn as the golden baseline.
 - Generate the first immutable V24 artifact manifest and preserve the originals unchanged.
-- Audit train/validation/test separation and potential leakage.
-- Reproduce the 80.14% CIFAR-10 result from clean source.
+- Resolve the historical N1/N2 path and M4/M5 probability/noise behavior.
+- Complete the formal leakage audit.
+- Reproduce the 80.14% CIFAR-10 result from clean source and classify the evidence state precisely.
 - Freeze the dependency environment for the reproduced baseline.
 - Build a complete raw-image inference path.
 - Expand deterministic tests and CI to model/preprocessing fixtures and container smoke tests.
-- Create a measured Green AI benchmark suite.
+- Execute the controlled Green AI benchmark suite.
 - Add calibration and reliability evaluation.
 - Develop class-conditioned AB-GEN attribution maps.
 - Package reproducible releases with checksums and environment locks.
