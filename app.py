@@ -9,6 +9,7 @@ import base64
 import io
 import os
 import pickle
+import sys
 import threading
 
 import numpy as np
@@ -16,9 +17,11 @@ from PIL import Image
 from flask import Flask, jsonify, render_template
 
 from engine import ABGenEngine, CIFAR10_CLASSES
+from runtime_integrity import runtime_preflight_errors
 
-# Runtime artifacts can be supplied explicitly (for example by a read-only
-# Docker volume) while preserving the historical local-file defaults.
+# Runtime paths are explicit when launchers/containers are used. The local
+# defaults exist for manual forensic work, but manifest verification is still
+# required by default before direct startup deserializes anything.
 BUNDLE_PATH = os.environ.get("ABGEN_BUNDLE_PATH", "abgen_bundle.pkl")
 SAMPLE_DATA_PATH = os.environ.get("ABGEN_SAMPLE_DATA_PATH", "sample_data.pkl")
 
@@ -64,7 +67,7 @@ def img_to_b64(arr_rgb_uint8: np.ndarray, scale: int = 4) -> str:
 
 
 def load_resources():
-    """Load trusted runtime artifacts supplied by the operator."""
+    """Load trusted runtime artifacts after the caller has completed preflight."""
     global engine, sample_data
     print(f"[SERVER] Loading AB-GEN engine bundle: {BUNDLE_PATH}")
     engine = ABGenEngine(BUNDLE_PATH)
@@ -165,11 +168,16 @@ def _evidence_payload() -> dict:
     }
 
 
+def _resources_ready() -> bool:
+    return engine is not None and sample_data is not None
+
+
 @app.route("/")
 def index():
+    total_samples = len(sample_data["y"]) if sample_data is not None else 0
     return render_template(
         "index.html",
-        total_samples=len(sample_data["y"]),
+        total_samples=total_samples,
         classes=CIFAR10_CLASSES,
     )
 
@@ -177,7 +185,13 @@ def index():
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
     """Run the recovered inference path over the next deterministic cached batch."""
+    if not _resources_ready():
+        return jsonify({"error": "runtime resources are not loaded", "ready": False}), 503
+
     total_samples = len(sample_data["y"])
+    if total_samples <= 0:
+        return jsonify({"error": "sample cache is empty", "ready": False}), 503
+
     n = min(12, total_samples)
     idx = next_batch_indices(total_samples, n)
 
@@ -245,6 +259,7 @@ def analyze():
 @app.route("/api/status")
 def status():
     """Expose runtime state and evidence semantics without claim aliases."""
+    samples = len(sample_data["y"]) if sample_data is not None else 0
     return jsonify({
         "model": "AB-GEN Research Demo",
         "dataset": "CIFAR-10",
@@ -254,9 +269,9 @@ def status():
         "energy_metric_status": ENERGY_METRIC_STATUS,
         "inference_path_status": INFERENCE_PATH_STATUS,
         "batch_invariance_status": BATCH_INVARIANCE_STATUS,
-        "samples": len(sample_data["y"]),
+        "samples": samples,
         "device": "CUDA" if __import__("torch").cuda.is_available() else "CPU",
-        "ready": True,
+        "ready": _resources_ready(),
     })
 
 
@@ -266,6 +281,19 @@ def reset():
     return jsonify({"ok": True})
 
 
+def _direct_launch_preflight() -> int:
+    errors = runtime_preflight_errors()
+    if not errors:
+        return 0
+    print("[AB-GEN] Direct demo startup refused: runtime preflight failed.", file=sys.stderr)
+    for error in errors:
+        print(f"  - {error}", file=sys.stderr)
+    return 3
+
+
 if __name__ == "__main__":
+    exit_code = _direct_launch_preflight()
+    if exit_code:
+        raise SystemExit(exit_code)
     load_resources()
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host="127.0.0.1", port=5000, debug=False)
