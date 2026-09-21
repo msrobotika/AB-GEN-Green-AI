@@ -19,11 +19,17 @@ from flask import Flask, jsonify, render_template
 from engine import ABGenEngine, CIFAR10_CLASSES
 from runtime_integrity import runtime_preflight_errors
 
-# Runtime paths are explicit when launchers/containers are used. The local
-# defaults exist for manual forensic work, but manifest verification is still
-# required by default before direct startup deserializes anything.
-BUNDLE_PATH = os.environ.get("ABGEN_BUNDLE_PATH", "abgen_bundle.pkl")
-SAMPLE_DATA_PATH = os.environ.get("ABGEN_SAMPLE_DATA_PATH", "sample_data.pkl")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_ARTIFACT_DIR = os.path.join(BASE_DIR, "artifacts")
+
+# Launchers/containers may override these paths explicitly. Direct launch uses
+# the same repository-local artifacts/ contract documented everywhere else.
+BUNDLE_PATH = os.environ.get(
+    "ABGEN_BUNDLE_PATH", os.path.join(DEFAULT_ARTIFACT_DIR, "abgen_bundle.pkl")
+)
+SAMPLE_DATA_PATH = os.environ.get(
+    "ABGEN_SAMPLE_DATA_PATH", os.path.join(DEFAULT_ARTIFACT_DIR, "sample_data.pkl")
+)
 
 REPORTED_V24_VERSION = "V24 Slow Burn"
 REPORTED_V24_ACCURACY = 80.14
