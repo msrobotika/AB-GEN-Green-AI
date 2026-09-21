@@ -49,7 +49,7 @@ jobs:
           python -m pip freeze --all | sort >> ci-environment.txt
 
       - name: Compile Python sources
-        run: python -m compileall -q app.py engine.py serve.py docker_entrypoint.py tools tests
+        run: python -m compileall -q app.py engine.py serve.py docker_entrypoint.py runtime_integrity.py tools tests
 
       - name: Run regression tests
         run: python -m pytest -q tests
