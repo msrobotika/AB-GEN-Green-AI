@@ -43,8 +43,22 @@ jobs:
       - name: Verify dependency consistency
         run: python -m pip check
 
+      - name: Record exact CI environment
+        run: |
+          python --version > ci-environment.txt
+          python -m pip freeze --all | sort >> ci-environment.txt
+
       - name: Compile Python sources
         run: python -m compileall -q app.py engine.py serve.py docker_entrypoint.py tools tests
 
       - name: Run regression tests
         run: python -m pytest -q tests
+
+      - name: Upload CI environment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-environment-${{ github.sha }}
+          path: ci-environment.txt
+          if-no-files-found: error
+          retention-days: 30
