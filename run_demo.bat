@@ -1,5 +1,6 @@
 @echo off
 setlocal
+cd /d "%~dp0"
 title AB-GEN Research Demo
 color 0A
 
@@ -7,10 +8,10 @@ echo.
 echo  =============================================================
 echo   AB-GEN Research Demo - Recovered Cached-PCA Diagnostics
 echo   Evidence-first diagnostic path; not a clean RAW baseline
- echo  =============================================================
+echo  =============================================================
 echo.
 
-:: Runtime contract: explicit read-only-style artifact directory + manifest.
+:: Runtime contract: explicit artifact directory + trusted manifest.
 set "ABGEN_BUNDLE_PATH=%CD%\artifacts\abgen_bundle.pkl"
 set "ABGEN_SAMPLE_DATA_PATH=%CD%\artifacts\sample_data.pkl"
 set "ABGEN_TRAINING_MODULE_PATH=%CD%\artifacts\training_module.py"
@@ -33,7 +34,7 @@ if not exist "%ABGEN_ARTIFACT_MANIFEST_PATH%" goto :missing_manifest
 echo  [1/3] Runtime artifact set and manifest found.
 
 :: Step 3: Install demo dependencies
- echo  [2/3] Installing demo dependencies...
+echo  [2/3] Installing demo dependencies...
 python -m pip install -q -r requirements_demo.txt
 if %errorlevel% neq 0 (
     echo  [ERROR] Failed to install dependencies.
@@ -43,7 +44,7 @@ if %errorlevel% neq 0 (
 :: Step 4: Launch. app.py performs manifest/hash preflight before deserialization.
 echo.
 echo  [3/3] Launching AB-GEN diagnostic demo...
-echo  Open your browser at: http://localhost:5000
+echo  Open your browser at: http://127.0.0.1:5000
 echo  Press Ctrl+C to stop the server.
 echo.
 python app.py
