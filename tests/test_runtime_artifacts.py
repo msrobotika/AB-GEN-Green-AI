@@ -1,7 +1,7 @@
 from pathlib import Path
 
-import docker_entrypoint
 import engine
+import runtime_integrity
 from tools.artifact_manifest import create_manifest, write_manifest
 
 
@@ -15,6 +15,7 @@ def test_docker_image_does_not_copy_private_or_parent_artifacts():
     assert "COPY abgen_bundle.pkl" not in dockerfile
     assert "COPY sample_data.pkl" not in dockerfile
     assert "COPY tools/ tools/" in dockerfile
+    assert "runtime_integrity.py" in dockerfile
     assert 'VOLUME ["/artifacts"]' in dockerfile
     assert "ABGEN_REQUIRE_MANIFEST=1" in dockerfile
     assert 'CMD ["python", "docker_entrypoint.py"]' in dockerfile
@@ -36,15 +37,15 @@ def test_runtime_preflight_reports_missing_files(tmp_path):
         "ABGEN_BUNDLE_PATH": str(tmp_path / "abgen_bundle.pkl"),
         "ABGEN_SAMPLE_DATA_PATH": str(tmp_path / "sample_data.pkl"),
         "ABGEN_TRAINING_MODULE_PATH": str(tmp_path / "training_module.py"),
+        "ABGEN_ARTIFACT_MANIFEST_PATH": str(tmp_path / "runtime-manifest.json"),
+        "ABGEN_REQUIRE_MANIFEST": "1",
     }
 
-    missing = docker_entrypoint.missing_runtime_paths(env)
-    assert set(missing) == set(env)
-
-    for path in env.values():
-        Path(path).write_bytes(b"trusted-test-placeholder")
-
-    assert docker_entrypoint.missing_runtime_paths(env) == {}
+    missing = runtime_integrity.missing_runtime_paths(env)
+    assert set(missing) == {"model_bundle", "sample_data", "training_module"}
+    errors = runtime_integrity.runtime_preflight_errors(env)
+    assert len(errors) == 3
+    assert all("required runtime artifact missing" in error for error in errors)
 
 
 def test_runtime_manifest_verification_passes_then_detects_tamper(tmp_path):
@@ -72,10 +73,10 @@ def test_runtime_manifest_verification_passes_then_detects_tamper(tmp_path):
         "ABGEN_REQUIRE_MANIFEST": "1",
     }
 
-    assert docker_entrypoint.verify_runtime_manifest(env) == []
+    assert runtime_integrity.runtime_preflight_errors(env) == []
 
     bundle.write_bytes(b"bundle-tampered")
-    errors = docker_entrypoint.verify_runtime_manifest(env)
+    errors = runtime_integrity.runtime_preflight_errors(env)
     assert errors
     assert any("SHA-256 mismatch" in error or "size mismatch" in error for error in errors)
 
@@ -90,8 +91,8 @@ def test_manifest_requirement_can_only_be_disabled_explicitly(tmp_path):
     for key in ("ABGEN_BUNDLE_PATH", "ABGEN_SAMPLE_DATA_PATH", "ABGEN_TRAINING_MODULE_PATH"):
         Path(env[key]).write_bytes(b"placeholder")
 
-    assert docker_entrypoint.manifest_required(env) is False
-    assert docker_entrypoint.verify_runtime_manifest(env) == []
+    assert runtime_integrity.manifest_required(env) is False
+    assert runtime_integrity.runtime_preflight_errors(env) == []
 
 
 def test_explicit_serialization_module_path_is_supported(tmp_path, monkeypatch):
