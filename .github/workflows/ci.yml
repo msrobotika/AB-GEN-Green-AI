@@ -6,10 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      PYTHONHASHSEED: "0"
+      PYTHONDONTWRITEBYTECODE: "1"
 
     steps:
       - name: Checkout repository
@@ -18,16 +24,27 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
           cache: pip
           cache-dependency-path: requirements_demo.txt
 
-      - name: Install dependencies
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install CPU PyTorch
         run: |
-          python -m pip install --upgrade pip
           python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.0.0" "torchvision>=0.15.0"
+
+      - name: Install project and test dependencies
+        run: |
           python -m pip install -r requirements_demo.txt
           python -m pip install pytest
+
+      - name: Verify dependency consistency
+        run: python -m pip check
+
+      - name: Compile Python sources
+        run: python -m compileall -q app.py engine.py serve.py docker_entrypoint.py tools tests
 
       - name: Run regression tests
         run: python -m pytest -q tests
