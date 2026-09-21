@@ -1,48 +1,69 @@
 # Security Policy
 
-AB-GEN is currently a research/demo repository undergoing reproducibility and engineering hardening.
+AB-GEN is a research/demo repository undergoing reproducibility and engineering hardening. It is not represented as a security-audited production product.
 
-## Model and data artifacts
+## Serialized model/data artifacts
 
-AB-GEN uses Python serialization (`joblib` / pickle-compatible artifacts) for model bundles. These formats must be treated as **trusted-code artifacts**, not as safe data-exchange formats.
+AB-GEN uses Python serialization (`joblib` / pickle-compatible artifacts) for recovered runtime bundles. These formats are **trusted-code artifacts**, not safe interchange formats.
 
-**Never load a `.pkl`, joblib bundle or other serialized model artifact obtained from an untrusted or unverifiable source.** A malicious serialized object may execute code during deserialization.
+**Never load a `.pkl`, joblib bundle or compatibility module obtained from an untrusted or unverifiable source.** Malicious serialized objects or imported Python modules can execute arbitrary code.
 
-Validated AB-GEN releases are intended to move toward an artifact-manifest process that records provenance, producing source/version and SHA-256 checksums before runtime deserialization. Until that process is complete, only use artifacts you produced yourself from trusted source or artifacts explicitly distributed as part of a verified project release.
+## Runtime integrity preflight
+
+The Docker diagnostic runtime now requires a `runtime-manifest.json` by default and verifies filename, size and SHA-256 for:
+
+- `abgen_bundle.pkl`;
+- `sample_data.pkl`;
+- `training_module.py`.
+
+Verification happens in `docker_entrypoint.py` before `serve.py` starts and therefore before the bundle reaches `joblib.load()`.
+
+This improves **integrity checking**, but it does not create trust by itself. A malicious artifact and malicious matching manifest still pass a hash comparison. A validated release must therefore bind the accepted manifest to a trusted immutable release/commit/evidence package.
+
+`ABGEN_REQUIRE_MANIFEST=0` is for explicit local forensic/debug work only and must not be used as a validated deployment mode.
 
 See also:
+- `artifacts/README.md`;
+- `REPRODUCIBILITY.md`;
+- `ARTIFACT_MANIFEST_TEMPLATE.md`;
+- `RELEASE_CHECKLIST.md`;
+- issue #21.
 
-- `REPRODUCIBILITY.md`
-- `ARTIFACT_MANIFEST_TEMPLATE.md`
-- `RELEASE_CHECKLIST.md`
-- issue #21 for artifact-integrity hardening
+## Compatibility-module boundary
+
+Legacy bundles may require Python class definitions from `training_module.py`. In validated container execution this path is explicit through `ABGEN_TRAINING_MODULE_PATH` and covered by the runtime manifest.
+
+The source engine retains a parent-folder compatibility search only for historical local-layout recovery. When that fallback is used it emits a warning. It must not be treated as a validated deployment path.
 
 ## Secrets and private material
 
 Do not commit:
-
 - API keys, passwords, access tokens or private certificates;
 - proprietary customer datasets;
 - private training artifacts intended to remain confidential;
 - credentials embedded in notebooks, configuration or logs;
-- customer-identifying production data.
+- customer-identifying production data;
+- local absolute paths that expose private workstation structure when not required as evidence.
 
 Use environment variables or an appropriate secret-management mechanism for deployment credentials.
 
 ## Dependency and deployment security
 
-- Reproduce releases using documented dependency versions rather than arbitrary future package versions.
-- Treat model artifacts and dependency locks as part of the release evidence package.
-- Keep production services behind appropriate network controls when exposed outside localhost.
-- Do not expose debug/development servers to untrusted networks.
-- Review Docker/runtime permissions and artifact provenance before treating the public demo as a production deployment.
+- Reproducible releases require frozen/tested dependency versions rather than arbitrary future package versions.
+- Treat environment locks and artifact manifests as release evidence.
+- Keep services behind appropriate network controls when exposed outside localhost.
+- Never expose Flask development/debug mode to untrusted networks.
+- Run containers as an unprivileged user.
+- Keep runtime artifacts mounted read-only.
+- GPU/container-toolkit configuration must be explicit and independently documented when used.
+- `pip check` and source compilation are part of repository CI, but do not replace dependency-vulnerability review.
 
 ## Reporting a vulnerability
 
-Please do not publish exploit details, credentials, private artifacts or sensitive customer information in a public issue.
+Do not publish exploit details, credentials, private artifacts or sensitive customer information in a public issue.
 
-If GitHub private vulnerability reporting is available for this repository, use that channel. Otherwise contact the repository owner through an agreed private channel before public disclosure. Non-sensitive engineering defects may be reported through normal GitHub issues.
+If GitHub private vulnerability reporting is enabled for the repository, use it. Otherwise contact the repository owner through an agreed private channel before public disclosure. Non-sensitive engineering defects may use normal GitHub issues.
 
-## Current scope
+## Standing rule
 
-The public repository is a research/demo codebase and is **not yet represented as a security-audited production product**. Security claims should follow the same evidence-first rule as performance and efficiency claims.
+Security claims follow the same evidence-first policy as model-performance and efficiency claims. A security control may be described as implemented only for the boundary it actually covers; unresolved trust assumptions must remain visible.
