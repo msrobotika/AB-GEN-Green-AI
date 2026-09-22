@@ -191,7 +191,7 @@ If required artifacts are absent, container preflight fails rather than guessing
 
 ## Green AI status
 
-Historical project material contains energy-efficiency claims, but those values are **not validated benchmark results**. Percentage-savings headlines are withheld until measurement is repeated under the controlled protocol.
+Historical project material contains energy-efficiency claims, but those values are **not validated benchmark results**. The audit found a **factor-of-1,000 discrepancy** in a historical million-inference savings calculation; corrected arithmetic from the recorded constants is still only arithmetic from assumed constants, not a measurement. Percentage-savings headlines are withheld until measurement is repeated under the controlled protocol.
 
 A valid Green AI comparison must report, on identical hardware and equivalent accuracy/evaluation boundaries:
 - model-only and end-to-end inference separately;
