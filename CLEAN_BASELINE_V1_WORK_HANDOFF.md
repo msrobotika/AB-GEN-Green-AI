@@ -13,7 +13,7 @@ Allowed:
 - retain stage receipts, fitted artifacts, exact commands, environment and hashes;
 - run pre-test leakage and batch-invariance checks;
 - freeze a candidate evidence package;
-- execute the final test only after the explicit preflight gate passes.
+- execute the final test only after the explicit authorization and independent preflight gates pass.
 
 Not allowed:
 - tune against final-test labels or final-test accuracy;
@@ -158,7 +158,7 @@ Default acceptance:
 - score/logit drift within a documented frozen numerical tolerance;
 - no hidden RNG reset/position assignment affecting the same sample's result.
 
-A failure blocks final-test preflight. Do not tune against test to fix it.
+A failure blocks final-test authorization. Do not tune against test to fix it.
 
 ## Gate 8 — Leakage audit
 
@@ -194,29 +194,52 @@ Then verify integrity:
 python -m clean_baseline.candidate_verify evidence/candidate/candidate.manifest.json
 ```
 
-The freeze command deliberately keeps `final_test.sealed = false` in the sense of **not authorized/opened** for evaluation and leaves leakage/batch gates unresolved until their evidence is explicitly recorded. Freezing decisions does not itself authorize final-test access.
+The frozen manifest has status `FROZEN_PRETEST`: decisions are frozen, but final-test evaluation is still unauthorized. The original frozen manifest must remain unchanged thereafter.
 
-## Gate 10 — Final-test preflight
+## Gate 10 — Explicit final-test authorization
 
-Only after the candidate manifest has:
-- complete required hashes;
-- decisions frozen;
-- pre-test leakage audit = PASS;
-- pre-test batch invariance = PASS;
-- zero prior final-test access;
-- final-test authorization explicitly sealed/opened under the project convention;
+First produce machine-readable gate evidence for the **same candidate ID**:
 
-run:
+- leakage gate: `status = PASS`;
+- batch-invariance gate: `status = PASS` plus a frozen numerical score/logit tolerance.
+
+Then create a separate authorized manifest:
+
+```bash
+python -m clean_baseline.final_test_authorize \
+  --frozen-candidate evidence/candidate/candidate.manifest.json \
+  --leakage-gate evidence/candidate/leakage_gate.json \
+  --batch-invariance-gate evidence/candidate/batch_invariance_gate.json \
+  --split-ledger evidence/splits/split_ledger.csv \
+  --first-authorized-command "python <FINAL_EVALUATOR> --manifest evidence/candidate/candidate.authorized.manifest.json" \
+  --out evidence/candidate/candidate.authorized.manifest.json
+```
+
+This authorization step re-verifies the frozen candidate, binds both PASS gates and their hashes, re-checks the split-ledger hash, records the exact first authorized test command, and writes `final_test_authorization.json`. It does **not** overwrite `candidate.manifest.json`.
+
+Any gate failure, candidate mismatch, artifact modification, ledger change or prior test access must stop authorization.
+
+## Gate 11 — Independent final-test preflight
+
+Run preflight only against the separately authorized manifest:
 
 ```bash
 python -m clean_baseline.preflight \
-  evidence/candidate/candidate.manifest.json \
+  evidence/candidate/candidate.authorized.manifest.json \
   --split-ledger evidence/splits/split_ledger.csv
 ```
 
-The required output is `PASS`. Any `FAIL` means stop. Do not bypass the preflight in the evaluation runner.
+Required output:
 
-## Gate 11 — Execute final test once the candidate is frozen
+```text
+PASS: Clean Baseline v1 candidate is sealed for final-test evaluation.
+```
+
+Any `FAIL` means stop. Do not bypass preflight in the evaluator.
+
+## Gate 12 — Execute the exact authorized final-test command
+
+Execute **only** the `first_authorized_command` recorded by Gate 10, against the unchanged frozen candidate.
 
 Retain:
 - full 10,000 predictions with stable sample IDs;
@@ -231,9 +254,9 @@ Retain:
 - complete stage receipts;
 - output hashes.
 
-Do not change the model/config after reading the final result. A different configuration is a new candidate with a new freeze and a disclosed test-access history.
+Do not change the model/config after reading the final result. A different configuration is a new candidate with a new candidate ID, a new freeze, new authorization, and a disclosed test-access history.
 
-## Gate 12 — Fresh-environment rerun
+## Gate 13 — Fresh-environment rerun
 
 Before promotion to `Reproduced`, execute the accepted frozen candidate from a fresh environment using the retained lock, source commit, split ledger, config and artifacts. Compare full outputs under the acceptance tolerances.
 
@@ -251,6 +274,7 @@ Stop and preserve evidence if any of the following occurs:
 - material leakage `FAIL` or unresolved material `UNKNOWN`;
 - batch-context class instability;
 - candidate artifact/config/environment changes after freeze;
-- final-test access before authorization.
+- final-test access before authorization;
+- evaluator command differs from the recorded first authorized command.
 
 A failed run is evidence. Do not erase it and do not tune the final test until a preferred historical number appears.
