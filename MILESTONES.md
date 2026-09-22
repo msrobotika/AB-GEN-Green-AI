@@ -2,73 +2,77 @@
 
 This file tracks AB-GEN using an evidence-first standard. A performance claim is promoted only when the evidence package satisfies the relevant acceptance gate.
 
+## 2026-09-22 — Phase 1 recovery/audit closure
+
+Phase 1 is now closed **documentarily**, not as an end-to-end historical reproduction. The exact historical RAW → preprocessing/augmentation → PCA producer has still not been recovered, so no historical CIFAR-10 route is promoted to `Reproduced`.
+
+### Expanded batch-dependence characterization
+- The recovery audit expanded the batch-sensitivity experiment to **1,120 configurations plus 2,240 repeat/control executions**.
+- **344 configurations changed predicted class relative to individual inference** under the tested recovered path.
+- **0 changes were observed between identical repeated executions**.
+- Controlled tests showed that changing the assignment of the recovered inference noise is sufficient to reproduce the observed class changes, while fixing that noise removes the observed batch-induced class changes under the tested conditions.
+- This strengthens the conclusion that the recovered historical inference path is deterministic for an identical call but is not sample-context invariant. It still does **not** prove that this mechanism explains the historical 80.14% versus recovered 80.17% difference.
+
+### Stable prediction evidence
+- Three 10,000-row prediction CSVs were prepared with `sample_id,predicted_label,true_label`.
+- `sample_id` is derived from the SHA-256 of the 3,072 RAW CIFAR-10 image bytes.
+- All 10,000 sample identifiers were checked as unique and the label vectors were checked.
+- Because the historical PCA producer remains missing, this does not by itself prove complete cache→RAW identity.
+
+### Historical screenshot evidence recovered
+Three original screenshots supplied by the project author were archived in the AB-GEN reproducibility evidence store. They are classified as **historical documentary evidence**, not as autonomous reproduction evidence.
+
+They document:
+- a V23 / M4 PURIST run using a PCA cache, Fisher weights/centroids, 3,091 constructed features, TorchLR, TorchMLP and LightGBM;
+- the historical M4 result `N1 + TTA = 77.02%` and `N2 final = 78.05%`, consistent with the recovered 7,805/10,000 cache-path result;
+- a V24 rescue screen showing `N1 + TTA (El Enjambre M5) = 78.45%` and `N2 Rescatado (Linear puro) = 79.37%`.
+
+Original screenshot SHA-256 values:
+- `248ab8ad2b6fc1cc99ee7e672c2222397848fcce1e5e05c82cdef7c42c98bf1e`
+- `b9e4c95d473dfbae6d9407a786f6a576ccd30bbc0a1edd5d562b3756ab0f4298`
+- `7e7893bbc0a4e82587e518b66d3dc54c640af69580b17d35170a8ed2647b1a42`
+
+Visible historical filenames/artifacts such as `ab_gem_v22_1_ramsafe.py` and `v24_n1.pkl` are now provenance search leads. The screenshots do not recover the missing RAW→PCA transformer by themselves.
+
+### Additional audit boundaries
+- A recovered M5 demo/evaluation route uses test labels when fitting N2. That route is therefore invalid as an estimate of generalization on that same test set and is kept isolated from accepted evaluation evidence.
+- The available historical XAI heatmap is currently supported as a weighted PCA reconstruction/visualization, not as demonstrated faithful attribution of the N1/N2 decision.
+- Historical energy constants remain non-measurement evidence. Derived arithmetic from those constants must not be presented as experimentally demonstrated energy savings.
+- Connectome remains a future experimental track; no Connectome training/performance result is claimed.
+
 ## Verified engineering milestones
 
 ### 2026-09-21 — Public diagnostic path hardened
 - Removed UI/API calculations that exposed historical energy constants as numerical savings metrics.
 - Energy status is now `unavailable_pending_controlled_measurement` until the controlled benchmark is executed.
-- Removed ambiguous legacy API aliases such as generic `accuracy`, `confidence`, `prob` and `saving_pct` from the diagnostic contract.
-- Replaced random cached-batch sampling with deterministic stored-order traversal, resettable to sample 0.
-- Added explicit API/status fields for the recovered historical path and the known batch-invariance failure.
-- Corrected the visible recovered inference ordering to PCA → Fisher weighting → FFT/geometric expansion → N1 → polynomial N2.
-- Added regression guards preventing unvalidated energy headlines from reappearing in the public diagnostic UI.
-- Source now documents the historical noise-averaging mechanism instead of hiding it behind a generic helper name.
+- Replaced random cached-batch sampling with deterministic stored-order traversal.
+- Added explicit status fields for the recovered historical path and known batch-invariance failure.
+- Corrected visible recovered inference ordering to PCA → Fisher weighting → FFT/geometric expansion → N1 → polynomial N2.
 
 ### 2026-09-21 — Recovery audit produced executable evidence
-- Recovered **M4** evaluation from the PCA-cache path at **7,805 / 10,000 = 78.05%**, matching the documented project result.
-- Completed **M5 MASTER** evaluation with the original frozen N1 and reconstructed polynomial N2 at **7,955 / 10,000 = 79.55%**; saved prediction counts were checked.
-- Evaluated the recovered **Elite / Slow Burn** bundle from cache at **8,017 / 10,000 = 80.17%**.
-- The historical **80.14% V24 Slow Burn** headline remains **REPORTED** because the exact historical RAW→PCA transformer, split, script and prediction lineage have not been recovered end to end.
-- Demonstrated a deterministic batch-dependent inference path on a targeted set of 32 low-margin Ridge samples: 18 changed class between full-batch and individual inference, 17 changed between full-batch and batch-32, while exact repeated batches produced zero changes.
-- The recovered engine resets its RNG per call and assigns noise according to batch shape/position. This demonstrates batch dependence for the targeted subset, but does not establish that it explains the 80.14% versus 80.17% difference or generalize to the whole test set.
-- Recovered elite fingerprints include Fisher and centroid structures matching MASTER, N2 scaler metadata for 21,000 rows, an MLP configured for 250 epochs with BatchNorm counters at 3,750, and 50 `logspace(-3,5,50)` N2 alpha candidates. These are provenance clues, not proof of exact historical split identity.
+- M4 recovered cache path: **7,805 / 10,000 = 78.05%**.
+- M5 MASTER reconstructed/executed path: **7,955 / 10,000 = 79.55%**.
+- Elite / Slow Burn recovered cache bundle: **8,017 / 10,000 = 80.17%**.
+- Historical V24 Slow Burn: **80.14% REPORTED**, not reproduced end to end.
 
 ### 2026-09-21 — Baseline acceptance and leakage gates established
-- Added `BASELINE_ACCEPTANCE.md` to separate **Reported**, **Recovered**, **Pipeline reconstructed**, **Metric reproduced**, **Prediction reproduced**, and **Reproduced** evidence states.
-- Added `LEAKAGE_AUDIT_TEMPLATE.md` with mandatory `PASS` / `FAIL` / `UNKNOWN` review across dataset lineage, PCA, Fisher weighting, class centroids, N1 model selection, N2 stacking, augmentation/noise, calibration, and final-test access.
-- Added `tools/compare_predictions.py` for deterministic sample-level comparison by stable `sample_id`, including optional score comparison and JSON evidence output.
-- Added regression tests for row-order independence, label mismatches, score tolerances, sample-set mismatches, duplicate identifiers, and malformed scores.
-- Merged through PR #33 after CI passed.
+- Added `BASELINE_ACCEPTANCE.md`, `LEAKAGE_AUDIT_TEMPLATE.md` and deterministic prediction comparison tooling.
+- Evidence states explicitly separate Reported, Recovered, Reconstructed, Reproduced and Validated claims.
 
 ### 2026-09-21 — Controlled Green AI benchmark protocol added
-- Added `GREEN_AI_BENCHMARK_PROTOCOL.md` defining model-only, end-to-end, and optional cold-start measurement boundaries.
-- Defined hardware/environment freeze, warm-up, repeated-run statistics, batch-size matrix, synchronization, CPU/GPU separation, thermal/background-load controls, and raw evidence retention.
-- Defined an energy-evidence hierarchy prioritizing direct measurement and requiring joules/image alongside any percentage comparison.
-- This milestone establishes the protocol only; it does **not** validate historical energy-saving figures.
-
-### 2026-09-20 — Repository hardening initiated
-- Fixed `/api/reset` fixed-length class counters and added regression coverage.
-- Established CPU regression CI on pushes and pull requests.
-- Corrected missing clean-install dependencies.
-- Established runtime/serialized-artifact security boundaries.
-- Separated public Docker code from private runtime artifacts.
-- Added SHA-256 manifest tooling and trusted-artifact documentation.
-- Hardened public wording around reported accuracy and uncalibrated decision scores.
+- Added `GREEN_AI_BENCHMARK_PROTOCOL.md`.
+- This establishes a measurement protocol only; it does **not** validate historical energy-saving figures.
 
 ## Results currently under validation
 
-### CIFAR-10 — V24 Slow Burn historical result
-- Historical project record: **80.14%**.
-- Evidence state: **REPORTED**.
-- Exact RAW→PCA→model historical reproduction: **not established**.
-
-### CIFAR-10 — Elite / Slow Burn recovered bundle
-- Recovered cache-path result: **8,017 / 10,000 = 80.17%**.
-- Evidence state: **RECOVERED**.
-- Must not be presented as exact reproduction of the historical 80.14% route.
-
-### CIFAR-10 — M5 MASTER reconstructed path
-- Result: **7,955 / 10,000 = 79.55%**.
-- Original N1 frozen; polynomial N2 reconstructed and executed.
-- Evidence state: **RECONSTRUCTED / EXECUTED**.
-
-### CIFAR-10 — M4
-- Recovered cache-path result: **7,805 / 10,000 = 78.05%**.
-- Evidence state: **RECOVERED**.
-
-### MNIST — Universal V24
-- Historical project record: **97.79%**.
-- Evidence state: **REPORTED**.
+| Route | Result | Evidence state | Boundary |
+|---|---:|---|---|
+| V24 Slow Burn historical record | **80.14%** | **REPORTED** | Exact RAW→PCA→model historical reproduction not established. |
+| Elite / Slow Burn recovered bundle | **80.17%** | **RECOVERED** | Cache-path result; not exact reproduction of 80.14%. |
+| M5 MASTER | **79.55%** | **RECONSTRUCTED / EXECUTED** | Original frozen N1 + reconstructed polynomial N2. |
+| M4 | **78.05%** | **RECOVERED** | Cache-path result matching recorded M4 result. |
+| V24 rescue screenshot | **79.37%** | **HISTORICAL DOCUMENTARY EVIDENCE** | Screenshot of rescue run; not an independently reproduced metric. |
+| MNIST Universal V24 | **97.79%** | **REPORTED** | Historical project record; exact reproduction pending. |
 
 ## Current audit risks
 
@@ -76,70 +80,42 @@ This file tracks AB-GEN using an evidence-first standard. A performance claim is
 The exact historical transformer and raw preprocessing lineage remain unresolved. PCA test leakage is not demonstrated, but cannot yet be ruled out.
 
 ### Leakage
-Recovered MASTER logic contains class-dependent processing / augmentation state created before the final train-validation split. This is a material leakage concern for that route and requires independent audit. A separate demo route using test labels is invalid and must not be generalized to all routes without evidence.
+Recovered MASTER logic contains class-dependent processing/augmentation state created before the final train-validation split. A separate M5 route using test labels to fit N2 is invalid for evaluating generalization on that test set.
 
 ### Batch dependence
-The recovered historical meta-feature path is not sample-context invariant because per-call noise is assigned by array shape/position. Scope on the full test set remains unquantified.
+The recovered historical meta-feature path is not sample-context invariant because per-call noise is assigned by array shape/position. The expanded audit quantifies the effect under tested configurations, but the causal relationship to historical headline differences is not established.
 
 ### Energy
-Historical energy figures are unvalidated and at least one derived million-inference calculation contains a factor-of-1,000 discrepancy. No percentage-saving headline is currently accepted.
+Historical energy figures are unvalidated constants/calculations, not accepted measurements. No percentage-saving headline is currently accepted.
 
 ### XAI / calibration
 Softmax-normalized Ridge decision scores are not calibrated probabilities. PCA/geometric visualizations are not, by themselves, evidence of faithful attribution.
 
 ## Clean Baseline v1 acceptance gate
 
-The next performance result eligible for `Reproduced` status must come from a clean pipeline that satisfies all of the following:
+The next performance result eligible for `Reproduced` status must come from a clean pipeline that:
+1. starts from frozen raw data and immutable sample identities;
+2. freezes split identities before data-dependent fitting;
+3. fits PCA, Fisher weights, centroids and augmentation statistics on training data only;
+4. generates N2 meta-features with leakage-safe OOF/holdout logic;
+5. uses deterministic sample inference with no hidden batch-position dependence;
+6. freezes source commit, seeds, dtype, feature ordering, environment and artifact hashes;
+7. retains full test predictions and class metrics;
+8. passes the leakage audit with no unresolved material failure;
+9. reproduces the accepted output from a clean environment within documented tolerances.
 
-1. raw dataset version and immutable sample identities recorded;
-2. split identities frozen before any data-dependent fitting;
-3. PCA fit on training data only;
-4. Fisher weights / centroids / augmentation statistics fit on training data only;
-5. N2 meta-features generated with leakage-safe OOF or documented holdout logic;
-6. deterministic sample inference with no hidden batch-position dependence;
-7. exact source commit, seeds, dtype, feature ordering and dependency environment frozen;
-8. model/preprocessing artifact hashes stored;
-9. full test predictions and per-class metrics retained;
-10. final test accessed only after model-selection decisions are frozen;
-11. completed leakage audit contains no unresolved material `FAIL` or `UNKNOWN`;
-12. rerun from a clean environment reproduces the accepted output within documented tolerances.
-
-The clean baseline may score below historical records; evidence quality takes precedence over headline accuracy.
-
-## Green AI gate
-
-Any future efficiency claim additionally requires:
-- same hardware / OS / software boundary for AB-GEN and baselines;
-- model-only and end-to-end results separated;
-- warm-up and fixed input set;
-- batch size and repeated runs;
-- latency / throughput / RAM / VRAM;
-- measured joules per image and uncertainty;
-- baseline accuracy under the same evaluation protocol;
-- carbon conversion kept separate from measured energy.
-
-## Connectome Edge R&D gate
-
-The Connectome track is separate from historical recovery.
-- **C0** literature/data/topology mapping may proceed.
-- **C1** model-performance experiments should use the clean AB-GEN baseline as the reference.
-- Biological topology must be compared against matched sparse-random, degree-preserving shuffled and parameter-matched dense controls.
-- No superiority, neuromorphic or efficiency claim is accepted without controlled archived evidence.
+A lower clean score is more valuable than a higher score whose data lineage cannot be defended.
 
 ## Roadmap — priority order
-
-1. Finish repository/public evidence hardening and keep CI green.
-2. Recover and freeze exact RAW→PCA provenance if possible.
+1. Preserve and hash all historical evidence and newly recovered screenshots.
+2. Search historical storage for the RAW→PCA producer using recovered filenames/artifact clues.
 3. Complete the independent historical leakage audit.
-4. Implement and execute **Clean Baseline v1** from raw data.
-5. Freeze clean source/environment/artifacts/predictions and reproduce them from a clean environment.
-6. Characterize batch sensitivity of the historical route for forensic completeness; do not import that behavior into the clean baseline.
-7. Execute controlled Green AI benchmarks against compact conventional baselines.
-8. Evaluate calibration and explanation fidelity.
-9. Continue Connectome C0 in parallel; advance to C1 only against the clean baseline and matched controls.
-10. Package reproducible releases with checksums and environment locks.
-11. Publish technical notes or a preprint only when claims trace directly to archived evidence.
+4. Implement and execute Clean Baseline v1 from raw data.
+5. Freeze and reproduce the clean source/environment/artifacts/predictions.
+6. Run controlled Green AI benchmarks only after the clean baseline exists.
+7. Evaluate calibration and explanation fidelity.
+8. Keep Connectome isolated until controlled C1 experiments are justified.
 
 ## Communication principle
 
-AB-GEN should be presented as strongly as the evidence allows, and never more strongly. Historical records, recovered execution, reconstructed pipelines, clean reproduction and independent validation are distinct states and must stay distinct.
+AB-GEN should be presented as strongly as the evidence allows, and never more strongly. Historical records, documentary evidence, recovered execution, reconstructed pipelines, clean reproduction and independent validation are distinct states and must stay distinct.
