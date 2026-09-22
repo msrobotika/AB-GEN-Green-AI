@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -10,6 +9,12 @@ from clean_baseline import candidate_freeze
 from clean_baseline.candidate_verify import verify_frozen_candidate
 from clean_baseline.contracts import LeakageError, assert_manifest_ready_for_final_test
 from clean_baseline.final_test_authorize import authorize_final_test
+from clean_baseline.gate_evidence import (
+    REQUIRED_INVARIANCE_CONTEXTS,
+    REQUIRED_LEAKAGE_CHECKS,
+    build_batch_invariance_gate,
+    build_leakage_gate,
+)
 from clean_baseline.preflight import run_preflight
 from clean_baseline.split_ledger import PROTOCOL_ID, sha256_file
 
@@ -70,6 +75,60 @@ def _freeze_fixture(tmp_path: Path, monkeypatch):
     }
 
 
+def _make_pass_gates(fixture):
+    out = fixture["out"]
+    evidence = _write(out / "gate-evidence.txt", "fixture gate evidence\n")
+    evidence_entry = {"path": evidence.name, "sha256": sha256_file(evidence)}
+    frozen_sha = sha256_file(fixture["manifest"])
+
+    audit = {
+        "protocol_id": PROTOCOL_ID,
+        "candidate_id": "cbv1-test-candidate",
+        "frozen_candidate_manifest_sha256": frozen_sha,
+        "checks": {
+            check_id: {
+                "status": "PASS",
+                "evidence": [evidence_entry],
+                "note": "fixture evidence",
+            }
+            for check_id in REQUIRED_LEAKAGE_CHECKS
+        },
+    }
+    audit_path = out / "structured_leakage_audit.json"
+    audit_path.write_text(json.dumps(audit, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    leakage_gate = out / "leakage_gate.json"
+    build_leakage_gate(
+        frozen_candidate_manifest=fixture["manifest"],
+        structured_audit_json=audit_path,
+        output_path=leakage_gate,
+    )
+
+    report = {
+        "protocol_id": PROTOCOL_ID,
+        "candidate_id": "cbv1-test-candidate",
+        "frozen_candidate_manifest_sha256": frozen_sha,
+        "frozen_score_tolerance": 1e-8,
+        "max_score_drift": 5e-9,
+        "sample_count": 32,
+        "configuration_count": 224,
+        "repeat_pair_count": 32,
+        "class_changes": 0,
+        "identical_repeat_class_changes": 0,
+        "hidden_rng_position_dependency_detected": False,
+        "contexts_tested": sorted(REQUIRED_INVARIANCE_CONTEXTS),
+        "evidence": [evidence_entry],
+    }
+    report_path = out / "batch_invariance_report.json"
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    batch_gate = out / "batch_gate.json"
+    build_batch_invariance_gate(
+        frozen_candidate_manifest=fixture["manifest"],
+        invariance_report_json=report_path,
+        output_path=batch_gate,
+    )
+    return leakage_gate, batch_gate, audit_path, report_path
+
+
 def test_candidate_freeze_is_pretest_only_and_integrity_verifiable(tmp_path, monkeypatch):
     fixture = _freeze_fixture(tmp_path, monkeypatch)
     candidate = json.loads(fixture["manifest"].read_text(encoding="utf-8"))
@@ -95,33 +154,9 @@ def test_candidate_verifier_rejects_artifact_tampering(tmp_path, monkeypatch):
         verify_frozen_candidate(fixture["manifest"])
 
 
-def test_final_test_authorization_requires_two_pass_gates_and_then_preflight_passes(tmp_path, monkeypatch):
+def test_final_test_authorization_requires_derived_pass_gates_and_then_preflight_passes(tmp_path, monkeypatch):
     fixture = _freeze_fixture(tmp_path, monkeypatch)
-    leakage = fixture["out"] / "leakage_gate.json"
-    batch = fixture["out"] / "batch_gate.json"
-    leakage.write_text(
-        json.dumps(
-            {
-                "protocol_id": PROTOCOL_ID,
-                "candidate_id": "cbv1-test-candidate",
-                "status": "PASS",
-            }
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    batch.write_text(
-        json.dumps(
-            {
-                "protocol_id": PROTOCOL_ID,
-                "candidate_id": "cbv1-test-candidate",
-                "status": "PASS",
-                "frozen_score_tolerance": 1e-8,
-            }
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    leakage, batch, _audit, _report = _make_pass_gates(fixture)
 
     authorized_path = fixture["out"] / "candidate.authorized.manifest.json"
     authorize_final_test(
@@ -146,27 +181,15 @@ def test_final_test_authorization_requires_two_pass_gates_and_then_preflight_pas
     assert authorized["final_test"]["authorization_record_sha256"] == sha256_file(authorization_record)
 
 
-def test_final_test_authorization_rejects_failed_batch_gate(tmp_path, monkeypatch):
+def test_final_test_authorization_rejects_tampered_source_batch_report(tmp_path, monkeypatch):
     fixture = _freeze_fixture(tmp_path, monkeypatch)
-    leakage = fixture["out"] / "leakage_gate.json"
-    batch = fixture["out"] / "batch_gate.json"
-    leakage.write_text(
-        json.dumps({"protocol_id": PROTOCOL_ID, "candidate_id": "cbv1-test-candidate", "status": "PASS"}),
-        encoding="utf-8",
-    )
-    batch.write_text(
-        json.dumps(
-            {
-                "protocol_id": PROTOCOL_ID,
-                "candidate_id": "cbv1-test-candidate",
-                "status": "FAIL",
-                "frozen_score_tolerance": 1e-8,
-            }
-        ),
-        encoding="utf-8",
-    )
+    leakage, batch, _audit, report = _make_pass_gates(fixture)
 
-    with pytest.raises(LeakageError, match="status is not PASS"):
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    payload["class_changes"] = 1
+    report.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(LeakageError, match="source hash mismatch"):
         authorize_final_test(
             frozen_candidate_manifest=fixture["manifest"],
             leakage_gate_json=leakage,
