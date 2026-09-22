@@ -121,6 +121,8 @@ def test_read_preserves_requested_sample_order_and_rechecks_identity(monkeypatch
     assert batch.values.dtype == np.uint8
     assert batch.values.shape == (2, 3072)
     assert batch.labels.tolist() == [2, 1]
+    assert batch.values.flags.writeable is False
+    assert batch.labels.flags.writeable is False
     assert sha256(batch.values[0].tobytes(order="C")).hexdigest() == requested[0]
     assert sha256(batch.values[1].tobytes(order="C")).hexdigest() == requested[1]
 
@@ -173,6 +175,8 @@ def test_normalization_is_stateless_float32_and_receipted(monkeypatch):
 
     assert normalized.values.dtype == np.float32
     assert normalized.values.shape == raw.values.shape
+    assert normalized.values.flags.writeable is False
+    assert normalized.labels.flags.writeable is False
     assert float(normalized.values.min()) >= 0.0
     assert float(normalized.values.max()) <= 1.0
     np.testing.assert_allclose(normalized.values, raw.values.astype(np.float32) / np.float32(255.0))
@@ -182,6 +186,16 @@ def test_normalization_is_stateless_float32_and_receipted(monkeypatch):
     assert normalized.receipt.fit_authorization_sha256 is None
     assert normalized.receipt.input_signature.sample_id_order_sha256 == normalized.receipt.output_signature.sample_id_order_sha256
     assert normalized.receipt.input_signature.feature_order_sha256 == normalized.receipt.output_signature.feature_order_sha256
+
+
+def test_constructor_rejects_incomplete_source_hash_map():
+    raw = _raw(1)
+    rows = (_row(raw, label=1, source_file="data_batch_1", source_index=0, split="train_core"),)
+    incomplete = _source_hashes()
+    incomplete.pop("test_batch")
+
+    with pytest.raises(LeakageError, match="source hash map mismatch"):
+        VerifiedCifarRawStore(root=".", rows=rows, expected_source_hashes=incomplete)
 
 
 def test_cifar_raw_feature_order_is_explicit_and_unique():
