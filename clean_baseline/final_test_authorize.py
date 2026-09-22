@@ -8,20 +8,8 @@ from typing import Iterable, Mapping
 
 from .candidate_verify import verify_frozen_candidate
 from .contracts import LeakageError, assert_manifest_ready_for_final_test
+from .gate_validate import validate_batch_invariance_gate, validate_leakage_gate
 from .split_ledger import PROTOCOL_ID, sha256_file
-
-
-def _load_gate(path: Path, *, candidate_id: str, gate_name: str) -> Mapping[str, object]:
-    payload = json.loads(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(payload, Mapping):
-        raise LeakageError(f"{gate_name} gate evidence must be a JSON object")
-    if payload.get("protocol_id") != PROTOCOL_ID:
-        raise LeakageError(f"{gate_name} gate protocol_id mismatch")
-    if payload.get("candidate_id") != candidate_id:
-        raise LeakageError(f"{gate_name} gate candidate_id mismatch")
-    if payload.get("status") != "PASS":
-        raise LeakageError(f"{gate_name} gate status is not PASS")
-    return payload
 
 
 def authorize_final_test(
@@ -44,15 +32,17 @@ def authorize_final_test(
 
     leakage_gate_json = Path(leakage_gate_json)
     batch_invariance_gate_json = Path(batch_invariance_gate_json)
-    leakage_gate = _load_gate(leakage_gate_json, candidate_id=candidate_id, gate_name="leakage")
-    batch_gate = _load_gate(
+    leakage_gate = validate_leakage_gate(
+        leakage_gate_json,
+        frozen_candidate_manifest=frozen_candidate_manifest,
+    )
+    batch_gate = validate_batch_invariance_gate(
         batch_invariance_gate_json,
-        candidate_id=candidate_id,
-        gate_name="batch-invariance",
+        frozen_candidate_manifest=frozen_candidate_manifest,
     )
 
     tolerance = batch_gate.get("frozen_score_tolerance")
-    if not isinstance(tolerance, (int, float)) or tolerance < 0:
+    if not isinstance(tolerance, (int, float)) or isinstance(tolerance, bool) or tolerance < 0:
         raise LeakageError("batch-invariance gate must contain non-negative frozen_score_tolerance")
 
     authorized = deepcopy(candidate)
@@ -101,16 +91,19 @@ def authorize_final_test(
             "path": leakage_gate_json.resolve().as_posix(),
             "sha256": sha256_file(leakage_gate_json),
             "status": leakage_gate.get("status"),
+            "source_audit_sha256": leakage_gate.get("structured_audit_sha256"),
         },
         "batch_invariance_gate": {
             "path": batch_invariance_gate_json.resolve().as_posix(),
             "sha256": sha256_file(batch_invariance_gate_json),
             "status": batch_gate.get("status"),
+            "source_report_sha256": batch_gate.get("invariance_report_sha256"),
             "frozen_score_tolerance": tolerance,
+            "max_score_drift": batch_gate.get("max_score_drift"),
         },
         "split_ledger_sha256": observed_ledger_sha,
         "first_authorized_command": first_authorized_command,
-        "rule": "Authorization is valid only for this frozen candidate and evidence set. Any model/config/artifact change requires a new candidate freeze.",
+        "rule": "Authorization is valid only for this frozen candidate and source-revalidated evidence set. Any model/config/artifact change requires a new candidate freeze.",
     }
 
     output_path = Path(output_path)
