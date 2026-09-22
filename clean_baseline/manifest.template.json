@@ -1,0 +1,67 @@
+{
+  "protocol_id": "abgen-clean-baseline-v1",
+  "candidate_id": "UNSET",
+  "status": "PRE_EXECUTION",
+  "source_commit": "UNSET",
+  "dataset": {
+    "name": "CIFAR-10",
+    "source_description": "UNSET",
+    "raw_source_sha256": "UNSET",
+    "raw_sample_count": 60000,
+    "sample_id_definition": "sha256(raw_image_bytes)"
+  },
+  "splits": {
+    "policy": "per-class sample_id lexicographic order; 4000/500/500 official-train + untouched official test",
+    "ledger_path": "UNSET",
+    "ledger_sha256": "UNSET",
+    "counts": {
+      "train_core": 40000,
+      "validation": 5000,
+      "calibration_reserved": 5000,
+      "test": 10000
+    }
+  },
+  "config": {
+    "path": "UNSET",
+    "frozen_config_sha256": "UNSET",
+    "seeds": {},
+    "deterministic_flags": {},
+    "dtype": "UNSET",
+    "device_mode": "UNSET"
+  },
+  "environment": {
+    "lock_path": "UNSET",
+    "lock_sha256": "UNSET",
+    "python": "UNSET",
+    "platform": "UNSET"
+  },
+  "features": {
+    "feature_order_path": "UNSET",
+    "feature_order_sha256": "UNSET"
+  },
+  "artifacts": {
+    "pretest_manifest_path": "UNSET",
+    "pretest_manifest_sha256": "UNSET"
+  },
+  "commands": [],
+  "leakage_audit": {
+    "path": "UNSET",
+    "pretest_status": "UNKNOWN"
+  },
+  "batch_invariance": {
+    "path": "UNSET",
+    "pretest_status": "UNKNOWN",
+    "frozen_score_tolerance": "UNSET"
+  },
+  "calibration_reserved": {
+    "used_to_tune_clean_baseline_accuracy": false,
+    "note": "Reserved for downstream calibration issue #9"
+  },
+  "final_test": {
+    "sealed": false,
+    "decisions_frozen": false,
+    "access_count_before_seal": 0,
+    "first_authorized_command": "UNSET",
+    "result_path": "UNSET"
+  }
+}
