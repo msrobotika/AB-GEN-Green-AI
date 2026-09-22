@@ -1,7 +1,7 @@
 """Leakage guardrails and deterministic contracts for AB-GEN Clean Baseline v1.
 
-This package is intentionally pre-execution infrastructure. Importing it does not
-load datasets, train models, run inference or access historical artifacts.
+Importing this package does not load datasets, train models, run inference or
+access historical artifacts. Dataset access remains explicit and hash-bound.
 """
 
 from .candidate_freeze import freeze_candidate
@@ -30,6 +30,13 @@ from .gate_evidence import (
 from .gate_validate import validate_batch_invariance_gate, validate_leakage_gate
 from .ledger_io import read_ledger_rows, verify_ledger_package
 from .oof_plan import build_oof_fold_sets, verify_oof_plan, write_oof_plan
+from .raw_store import (
+    NormalizedBatch,
+    RawBatch,
+    VerifiedCifarRawStore,
+    cifar_raw_feature_names,
+    normalize_unit_float32,
+)
 from .split_ledger import LedgerRow, SourceSample, build_ledger_rows, inventory_cifar_python_dir
 from .stage_audit import (
     FitAuthorization,
@@ -53,15 +60,18 @@ __all__ = [
     "LEAKAGE_GATE_SCHEMA",
     "LedgerRow",
     "LeakageError",
+    "NormalizedBatch",
     "OOFProducerAuthorization",
     "REQUIRED_INVARIANCE_CONTEXTS",
     "REQUIRED_LEAKAGE_CHECKS",
+    "RawBatch",
     "RawSample",
     "SampleRecord",
     "SourceSample",
     "SplitLedger",
     "StageReceipt",
     "TensorSignature",
+    "VerifiedCifarRawStore",
     "assign_development_splits",
     "assign_oof_folds",
     "assert_manifest_ready_for_final_test",
@@ -74,12 +84,14 @@ __all__ = [
     "build_leakage_gate",
     "build_ledger_rows",
     "build_oof_fold_sets",
+    "cifar_raw_feature_names",
     "freeze_candidate",
     "hash_feature_order",
     "hash_sample_bytes",
     "hash_sample_id_order",
     "inventory_cifar_python_dir",
     "make_stage_receipt",
+    "normalize_unit_float32",
     "read_ledger_rows",
     "tensor_signature",
     "validate_batch_invariance_gate",
