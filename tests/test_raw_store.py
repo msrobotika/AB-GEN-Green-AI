@@ -59,6 +59,13 @@ def _store_and_batches():
     return store, rows, batches
 
 
+def _allow_bound_hashes(monkeypatch, store: VerifiedCifarRawStore) -> None:
+    monkeypatch.setattr(
+        "clean_baseline.raw_store.sha256_file",
+        lambda path: store.expected_source_hashes[path.name],
+    )
+
+
 def test_open_rejects_changed_raw_source_before_deserialization(monkeypatch, tmp_path):
     expected = _source_hashes()
     rows = (_row(_raw(1), label=1, source_file="data_batch_1", source_index=0, split="train_core"),)
@@ -86,8 +93,22 @@ def test_open_rejects_changed_raw_source_before_deserialization(monkeypatch, tmp
         )
 
 
+def test_batch_is_rehashed_immediately_before_pickle_deserialization(monkeypatch):
+    store, rows, _batches = _store_and_batches()
+    monkeypatch.setattr("clean_baseline.raw_store.sha256_file", lambda _path: "0" * 64)
+
+    def forbidden_loader(*_args, **_kwargs):
+        raise AssertionError("pickle load must not run after a just-in-time hash mismatch")
+
+    monkeypatch.setattr("clean_baseline.raw_store._load_verified_batch", forbidden_loader)
+
+    with pytest.raises(LeakageError, match="RAW source changed before deserialization"):
+        store.read((rows[0].sample_id,), purpose="development preprocessing")
+
+
 def test_read_preserves_requested_sample_order_and_rechecks_identity(monkeypatch):
     store, rows, batches = _store_and_batches()
+    _allow_bound_hashes(monkeypatch, store)
     monkeypatch.setattr(
         "clean_baseline.raw_store._load_verified_batch",
         lambda path: batches[path.name],
@@ -106,6 +127,7 @@ def test_read_preserves_requested_sample_order_and_rechecks_identity(monkeypatch
 
 def test_read_keeps_final_test_sealed_without_authorization(monkeypatch):
     store, rows, batches = _store_and_batches()
+    _allow_bound_hashes(monkeypatch, store)
     monkeypatch.setattr(
         "clean_baseline.raw_store._load_verified_batch",
         lambda path: batches[path.name],
@@ -125,6 +147,7 @@ def test_read_keeps_final_test_sealed_without_authorization(monkeypatch):
 
 def test_read_rejects_raw_bytes_that_no_longer_match_ledger(monkeypatch):
     store, rows, batches = _store_and_batches()
+    _allow_bound_hashes(monkeypatch, store)
     corrupted = batches["data_batch_1"][0].copy()
     corrupted[0, 0] ^= np.uint8(1)
     batches["data_batch_1"] = (corrupted, batches["data_batch_1"][1])
@@ -139,6 +162,7 @@ def test_read_rejects_raw_bytes_that_no_longer_match_ledger(monkeypatch):
 
 def test_normalization_is_stateless_float32_and_receipted(monkeypatch):
     store, rows, batches = _store_and_batches()
+    _allow_bound_hashes(monkeypatch, store)
     monkeypatch.setattr(
         "clean_baseline.raw_store._load_verified_batch",
         lambda path: batches[path.name],
