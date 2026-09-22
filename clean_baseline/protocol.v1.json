@@ -1,0 +1,71 @@
+{
+  "protocol_id": "abgen-clean-baseline-v1",
+  "status": "PRE_EXECUTION",
+  "dataset": {
+    "name": "CIFAR-10",
+    "official_train_count": 50000,
+    "official_test_count": 10000,
+    "sample_id": "sha256(raw_image_bytes)",
+    "final_test_source": "official CIFAR-10 test partition"
+  },
+  "development_split": {
+    "method": "per_class_lexicographic_sample_id",
+    "train_core_per_class": 4000,
+    "validation_per_class": 500,
+    "calibration_reserved_per_class": 500,
+    "rng_used": false
+  },
+  "oof": {
+    "fit_pool_splits": ["train_core", "validation"],
+    "fit_pool_count": 45000,
+    "folds": 5,
+    "method": "per_class_lexicographic_sample_id_rank_mod_5",
+    "samples_per_fold": 9000,
+    "samples_per_class_per_fold": 900,
+    "fold_local_preprocessing_required": true
+  },
+  "fit_scopes": {
+    "development_preprocessing_fit": ["train_core"],
+    "development_n1_fit": ["train_core"],
+    "oof_producer_fit": ["train_core", "validation"],
+    "n2_oof_fit": ["train_core", "validation"],
+    "final_preprocessing_refit": ["train_core", "validation"],
+    "final_n1_refit": ["train_core", "validation"],
+    "downstream_calibration_fit": ["calibration_reserved"]
+  },
+  "forbidden_fit_splits": ["test"],
+  "calibration_reserved": {
+    "count": 5000,
+    "use_in_clean_baseline_accuracy_tuning": false,
+    "downstream_issue": 9
+  },
+  "final_test": {
+    "count": 10000,
+    "evaluation_only_after_freeze": true,
+    "no_retuning_after_observation": true,
+    "required_outputs": [
+      "sample_id",
+      "true_label",
+      "predicted_label",
+      "class_scores"
+    ]
+  },
+  "batch_invariance": {
+    "required": true,
+    "class_prediction_invariant": true,
+    "batch_sizes": [1, 2, 4, 8, 16, 32, 64],
+    "multiple_positions": true,
+    "different_companions": true,
+    "identical_repeat_check": true,
+    "score_tolerance_must_be_frozen_before_test": true
+  },
+  "prohibited": [
+    "historical_pca_cache_as_clean_baseline_input",
+    "test_labels_in_any_fit_or_selection_scope",
+    "global_fit_pool_preprocessing_before_oof",
+    "test_driven_hyperparameter_changes",
+    "test_driven_feature_changes",
+    "batch_position_randomness_affecting_prediction",
+    "silent_replacement_of_failed_candidate"
+  ]
+}
