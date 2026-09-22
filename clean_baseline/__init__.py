@@ -19,6 +19,15 @@ from .contracts import (
     hash_sample_bytes,
 )
 from .final_test_authorize import authorize_final_test
+from .gate_evidence import (
+    BATCH_GATE_SCHEMA,
+    LEAKAGE_GATE_SCHEMA,
+    REQUIRED_INVARIANCE_CONTEXTS,
+    REQUIRED_LEAKAGE_CHECKS,
+    build_batch_invariance_gate,
+    build_leakage_gate,
+)
+from .gate_validate import validate_batch_invariance_gate, validate_leakage_gate
 from .ledger_io import read_ledger_rows, verify_ledger_package
 from .oof_plan import build_oof_fold_sets, verify_oof_plan, write_oof_plan
 from .split_ledger import LedgerRow, SourceSample, build_ledger_rows, inventory_cifar_python_dir
@@ -38,11 +47,15 @@ from .stage_audit import (
 )
 
 __all__ = [
+    "BATCH_GATE_SCHEMA",
     "FIT_PHASE_ALLOWED_SPLITS",
     "FitAuthorization",
+    "LEAKAGE_GATE_SCHEMA",
     "LedgerRow",
     "LeakageError",
     "OOFProducerAuthorization",
+    "REQUIRED_INVARIANCE_CONTEXTS",
+    "REQUIRED_LEAKAGE_CHECKS",
     "RawSample",
     "SampleRecord",
     "SourceSample",
@@ -57,6 +70,8 @@ __all__ = [
     "authorize_fit",
     "authorize_oof_producer",
     "authorize_transform",
+    "build_batch_invariance_gate",
+    "build_leakage_gate",
     "build_ledger_rows",
     "build_oof_fold_sets",
     "freeze_candidate",
@@ -67,6 +82,8 @@ __all__ = [
     "make_stage_receipt",
     "read_ledger_rows",
     "tensor_signature",
+    "validate_batch_invariance_gate",
+    "validate_leakage_gate",
     "verify_frozen_candidate",
     "verify_ledger_package",
     "verify_oof_plan",
