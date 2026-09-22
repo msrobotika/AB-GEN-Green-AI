@@ -30,6 +30,16 @@ from .gate_evidence import (
 from .gate_validate import validate_batch_invariance_gate, validate_leakage_gate
 from .ledger_io import read_ledger_rows, verify_ledger_package
 from .oof_plan import build_oof_fold_sets, verify_oof_plan, write_oof_plan
+from .pca_stage import (
+    PCAArtifact,
+    PCAConfig,
+    PCATransformedBatch,
+    fit_pca,
+    load_pca_artifact,
+    pca_feature_names,
+    save_pca_artifact,
+    transform_pca,
+)
 from .raw_store import (
     NormalizedBatch,
     RawBatch,
@@ -62,6 +72,9 @@ __all__ = [
     "LeakageError",
     "NormalizedBatch",
     "OOFProducerAuthorization",
+    "PCAArtifact",
+    "PCAConfig",
+    "PCATransformedBatch",
     "REQUIRED_INVARIANCE_CONTEXTS",
     "REQUIRED_LEAKAGE_CHECKS",
     "RawBatch",
@@ -85,15 +98,20 @@ __all__ = [
     "build_ledger_rows",
     "build_oof_fold_sets",
     "cifar_raw_feature_names",
+    "fit_pca",
     "freeze_candidate",
     "hash_feature_order",
     "hash_sample_bytes",
     "hash_sample_id_order",
     "inventory_cifar_python_dir",
+    "load_pca_artifact",
     "make_stage_receipt",
     "normalize_unit_float32",
+    "pca_feature_names",
     "read_ledger_rows",
+    "save_pca_artifact",
     "tensor_signature",
+    "transform_pca",
     "validate_batch_invariance_gate",
     "validate_leakage_gate",
     "verify_frozen_candidate",
