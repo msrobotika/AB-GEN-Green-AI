@@ -134,7 +134,7 @@ class VerifiedCifarRawStore:
     ) -> None:
         self.root = Path(root)
         self.rows = tuple(rows)
-        self.expected_source_hashes = dict(expected_source_hashes)
+        self.expected_source_hashes = _require_sha256_map(expected_source_hashes)
         _validate_row_source_contract(self.rows)
 
         self._row_by_id = {row.sample_id: row for row in self.rows}
@@ -226,6 +226,8 @@ class VerifiedCifarRawStore:
             values[output_index] = raw_row
             labels[output_index] = observed_label
 
+        values.setflags(write=False)
+        labels.setflags(write=False)
         return RawBatch(sample_ids=ids, labels=labels, values=values)
 
 
@@ -257,9 +259,12 @@ def normalize_unit_float32(raw: RawBatch, *, purpose: str) -> NormalizedBatch:
         output_feature_names=feature_names,
     )
 
+    labels = raw.labels.copy()
+    normalized.setflags(write=False)
+    labels.setflags(write=False)
     return NormalizedBatch(
         sample_ids=raw.sample_ids,
-        labels=raw.labels.copy(),
+        labels=labels,
         values=normalized,
         receipt=receipt,
     )
