@@ -9,7 +9,13 @@ import numpy as np
 
 from .contracts import LeakageError, SampleRecord, SplitLedger, hash_sample_bytes
 from .ledger_io import read_ledger_rows, verify_ledger_package
-from .split_ledger import CIFAR_BATCH_SPECS, CIFAR_IMAGE_BYTES, LedgerRow, inventory_cifar_python_dir
+from .split_ledger import (
+    CIFAR_BATCH_SPECS,
+    CIFAR_IMAGE_BYTES,
+    LedgerRow,
+    inventory_cifar_python_dir,
+    sha256_file,
+)
 from .stage_audit import StageReceipt, authorize_transform, make_stage_receipt
 
 
@@ -44,7 +50,7 @@ def _payload_value(payload: Mapping[object, object], *keys: object) -> object:
 
 
 def _load_verified_batch(path: Path) -> tuple[np.ndarray, np.ndarray]:
-    """Deserialize one CIFAR batch only after the store verified all source hashes."""
+    """Deserialize one CIFAR batch after its immediately preceding hash check."""
     with Path(path).open("rb") as handle:
         payload = pickle.load(handle, encoding="bytes")  # noqa: S301 - hash-bound CIFAR source only
 
@@ -115,7 +121,8 @@ class VerifiedCifarRawStore:
     Opening the store performs no pickle deserialization. All six source-file
     hashes must match the already-frozen split-ledger manifest first. Individual
     CIFAR batch files are deserialized lazily only when an authorized transform
-    requests samples from that file.
+    requests samples from that file. Each file is re-hashed immediately before
+    its first pickle load to close the hash-check/deserialization TOCTOU window.
     """
 
     def __init__(
@@ -168,7 +175,15 @@ class VerifiedCifarRawStore:
         if filename not in self.expected_source_hashes:
             raise LeakageError(f"attempted RAW access through unbound source file: {filename!r}")
         if filename not in self._batch_cache:
-            self._batch_cache[filename] = _load_verified_batch(self.root / filename)
+            path = self.root / filename
+            observed = sha256_file(path)
+            expected = self.expected_source_hashes[filename]
+            if observed.lower() != expected.lower():
+                raise LeakageError(
+                    f"RAW source changed before deserialization for {filename}: "
+                    f"observed={observed}, expected={expected}"
+                )
+            self._batch_cache[filename] = _load_verified_batch(path)
         return self._batch_cache[filename]
 
     def read(
