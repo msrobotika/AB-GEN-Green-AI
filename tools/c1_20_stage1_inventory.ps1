@@ -38,7 +38,7 @@ $Files = @(Get-ChildItem -LiteralPath $ProjectRoot -File -Recurse | Where-Object
 })
 
 $Candidates = New-Object System.Collections.Generic.List[object]
-$Matches = New-Object System.Collections.Generic.List[object]
+$ContentMatches = New-Object System.Collections.Generic.List[object]
 $AnchorHits = New-Object System.Collections.Generic.List[object]
 
 foreach ($File in $Files) {
@@ -100,7 +100,7 @@ foreach ($File in $Files) {
             if ($Line -match $ContentRx) {
                 $Clean = $Line.Trim()
                 if ($Clean.Length -gt 400) { $Clean = $Clean.Substring(0,400) }
-                $Matches.Add([pscustomobject]@{ path=$Rel; line=$LineNo; text=$Clean })
+                $ContentMatches.Add([pscustomobject]@{ path=$Rel; line=$LineNo; text=$Clean })
                 $Found++
                 if ($Found -ge 6) { break }
             }
@@ -140,7 +140,7 @@ foreach ($C in $Sorted) {
 
 $MatchLines = New-Object System.Collections.Generic.List[string]
 $MatchLines.Add(("path" + $TAB + "line" + $TAB + "text"))
-foreach ($M in $Matches) {
+foreach ($M in $ContentMatches) {
     $Safe = ([string]$M.text).Replace([char]9," ").Replace([char]13," ").Replace([char]10," ")
     $MatchLines.Add(($M.path + $TAB + [string]$M.line + $TAB + $Safe))
 }
