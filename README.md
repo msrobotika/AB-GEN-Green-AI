@@ -82,7 +82,7 @@ The recovered engine resets its RNG on every inference call and assigns perturba
 - A separate `demo_inferencia.py` route was found by code review to fit N2 with test labels. It was kept separate and is not a valid estimate of generalization on that same test set.
 - The historical medical/XAI heatmap accesses PCA/Fisher state but not N1/N2 or a target class in its heatmap generator. It is evidence of weighted PCA reconstruction/visualization, not demonstrated faithful classifier attribution.
 - Historical energy figures are constants/derived arithmetic, not controlled measurements. The corrected arithmetic from those constants is approximately **0.001080555 kWh per one million inferences saved**, but even a correct calculation from assumed constants is not an energy benchmark.
-- The separate Mosca-ABGEN / FlyCore connectome-inspired track has now produced frozen FashionMNIST confirmation and KMNIST transport results under its own protocol. These results are isolated from the historical CIFAR-10 AB-GEN evidence and do not establish biological equivalence, universality, or Edge-AI superiority. See [FLYCORE_C1_19_TRANSPORT.md](FLYCORE_C1_19_TRANSPORT.md).
+- The separate Mosca-ABGEN / FlyCore connectome-inspired track has now produced frozen FashionMNIST confirmation and KMNIST transport results under its own protocol. These results are isolated from the historical CIFAR-10 AB-GEN evidence and do not establish biological equivalence, universality, or Edge-AI superiority. See [FLYCORE_C1_19_TRANSPORT.md](FLYCORE_C1_19_TRANSPORT.md). The next FlyCore stress test is defined separately as a pre-freeze protocol in [FLYCORE_C1_20_PROTOCOL.md](FLYCORE_C1_20_PROTOCOL.md); it currently authorizes no C1.20 training or performance execution.
 
 ## Immediate technical priority: Clean Baseline v1
 
@@ -135,7 +135,7 @@ The separate **Mosca-ABGEN / FlyCore** track is now an active, independently gat
 - **[RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)** — pre-publication gate.
 - **[SECURITY.md](SECURITY.md)** — serialized-artifact trust boundary.
 - **[CONNECTOME_EDGE_RND.md](CONNECTOME_EDGE_RND.md)** — isolated connectome-inspired Edge-AI research protocol.
-- **[FLYCORE_C1_19_TRANSPORT.md](FLYCORE_C1_19_TRANSPORT.md)** — frozen FlyCore FashionMNIST→KMNIST robustness-transport result and claim boundary.
+- **[FLYCORE_C1_19_TRANSPORT.md](FLYCORE_C1_19_TRANSPORT.md)** — frozen FlyCore FashionMNIST→KMNIST robustness-transport result and claim boundary.\n- **[FLYCORE_C1_20_PROTOCOL.md](FLYCORE_C1_20_PROTOCOL.md)** — independent-topology KMNIST transport pre-freeze protocol; no C1.20 training/performance authorized yet.
 
 ---
 
