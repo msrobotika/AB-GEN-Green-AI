@@ -31,7 +31,7 @@ if (Test-Path -LiteralPath $OutDir) { throw "STAGE1 OUTPUT ALREADY EXISTS; refus
 $Extensions = @(".py",".ps1",".json",".csv",".tsv",".md",".txt",".yaml",".yml",".toml",".ini")
 $PathRx = '(?i)(c1[_\.-]?(16|17|18|19)|flycore|topolog|structur|selection|selected|pair|bank|rde)'
 $ContentRx = '(?i)(950100|1810000|1820000|C1\.17B1|C1\.18|selected[_ -]?topolog|topolog(y|ies)|structural[_ -]?bank|pairing|eligib|delta[_ -]?RDE|74a2ead538af0d049c66894bff705eb69102386c8a71013c3189815370dd5234)'
-$ExcludeRx = '(?i)(\\\.venv\\|\\__pycache__\\|\\c1_19r_kmnist_transport_run\\|\\c1_20p_stage1_inventory_v1\\)'
+$ExcludeRx = '(?i)(\\\.venv\\|\\__pycache__\\|\\c1_19r_kmnist_transport_run\\|\\c1_20p_stage0_preflight_v1\\|\\c1_20p_stage1_inventory_v1\\|\\04_Codigo\\tools\\c1_20_)'
 
 $Files = @(Get-ChildItem -LiteralPath $ProjectRoot -File -Recurse | Where-Object {
     ($Extensions -contains $_.Extension.ToLowerInvariant()) -and ($_.FullName -notmatch $ExcludeRx)
