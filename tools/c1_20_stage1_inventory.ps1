@@ -149,7 +149,7 @@ foreach ($M in $Matches) {
 $TopLines = New-Object System.Collections.Generic.List[string]
 $TopLines.Add("# C1.20 Stage1 top candidates")
 $TopLines.Add("")
-$TopLines.Add("INVENTORY ONLY — NO TRAINING — NO PERFORMANCE — NO TOPOLOGY GENERATION")
+$TopLines.Add("INVENTORY ONLY -- NO TRAINING -- NO PERFORMANCE -- NO TOPOLOGY GENERATION")
 $TopLines.Add("Stage0 freeze: " + $ExpectedStage0Freeze)
 $TopLines.Add("")
 foreach ($C in $Top) {
