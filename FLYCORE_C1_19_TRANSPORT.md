@@ -76,3 +76,18 @@ This result does **not** establish:
 - Edge-AI efficiency or energy superiority.
 
 The next scientific step should be a separately frozen stress test designed to challenge the transported effect rather than optimize around this PASS.
+
+
+## Final local run-tree seal
+
+The completed Xeon run was sealed after successful termination:
+
+- `complete.json`: **160**
+- `model.pt`: **160**
+- Run-tree files: **324**
+- Run-tree bytes: **28,283,730**
+- Run-tree SHA-256: `36621bbe2f43cf8da6bdb02df8fc2f19400112eb3d88d60bdf1f1f02c1484170`
+- Closure directory: `C:\ABGEN\07_Resultados\Informes\c1_19r_kmnist_transport_closure_v1`
+- Run files marked read-only after manifest generation: **YES**
+
+This seal binds the published C1.19 result to the exact local completed execution tree.
