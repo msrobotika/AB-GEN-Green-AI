@@ -24,7 +24,7 @@ foreach($k in $Req.Keys){
   if($h -ne $Req[$k]){throw "SHA MISMATCH $k"}
 }
 $E=Get-Content (Join-Path $Pkg "recovery_evidence.json") -Raw|ConvertFrom-Json
-$P=@(Get-Content (Join-Path $Pkg "selected_pairs_recovered.json") -Raw|ConvertFrom-Json)
+$PairsRoot=Get-Content (Join-Path $Pkg "selected_pairs_recovered.json") -Raw|ConvertFrom-Json
 
 function Find-JsonProperty {
   param($Node,[string]$Name)
@@ -48,10 +48,55 @@ function Find-JsonProperty {
 $ReplayHits=@(Find-JsonProperty $E "c1_18_confirmation_replay")
 if($ReplayHits.Count -ne 1){throw "EXPECTED EXACTLY 1 c1_18_confirmation_replay; FOUND $($ReplayHits.Count)"}
 $R=$ReplayHits[0]
+
+function Find-PairCollections {
+  param($Node)
+  $Found=@()
+  if($null -eq $Node){return $Found}
+
+  if($Node -is [System.Array]){
+    $Items=@($Node)
+    if($Items.Count -eq 16){
+      $Ok=$true
+      foreach($Item in $Items){
+        if(-not($Item -is [System.Management.Automation.PSCustomObject])){
+          $Ok=$false
+          break
+        }
+        $Names=@($Item.PSObject.Properties | ForEach-Object {$_.Name})
+        if(-not(($Names -contains "low") -and ($Names -contains "high") -and ($Names -contains "delta_rde"))){
+          $Ok=$false
+          break
+        }
+      }
+      if($Ok){
+        $Found += [pscustomobject]@{pairs=$Items}
+      }
+    }
+    foreach($Item in $Items){
+      $Found += @(Find-PairCollections $Item)
+    }
+    return $Found
+  }
+
+  if($Node -is [System.Management.Automation.PSCustomObject]){
+    foreach($Prop in $Node.PSObject.Properties){
+      if(($Prop.Value -is [System.Management.Automation.PSCustomObject]) -or ($Prop.Value -is [System.Array])){
+        $Found += @(Find-PairCollections $Prop.Value)
+      }
+    }
+  }
+  return $Found
+}
+
+$PairHits=@(Find-PairCollections $PairsRoot)
+if($PairHits.Count -ne 1){throw "EXPECTED EXACTLY 1 RECOVERED 16-PAIR COLLECTION; FOUND $($PairHits.Count)"}
+$P=@($PairHits[0].pairs)
+
 if([int]$R.candidate_count -ne 400){throw "candidate_count"}
 if([int]$R.eligible_pair_count -ne 91){throw "eligible_pair_count"}
 if(@($R.selected_pairs).Count -ne 16){throw "replay selected_pairs"}
-if($P.Count -ne 16){throw "recovered pair count"}
+if($P.Count -ne 16){throw "recovered pair count after structural extraction"}
 $seeds=@{};$hashes=@{};$rows=@()
 for($i=0;$i -lt 16;$i++){
   $x=$P[$i]
