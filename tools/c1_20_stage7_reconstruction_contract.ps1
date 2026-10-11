@@ -25,7 +25,29 @@ foreach($k in $Req.Keys){
 }
 $E=Get-Content (Join-Path $Pkg "recovery_evidence.json") -Raw|ConvertFrom-Json
 $P=@(Get-Content (Join-Path $Pkg "selected_pairs_recovered.json") -Raw|ConvertFrom-Json)
-$R=$E.c1_18_confirmation_replay
+
+function Find-JsonProperty {
+  param($Node,[string]$Name)
+  $Found=@()
+  if($null -eq $Node){return $Found}
+  if($Node -is [System.Array]){
+    foreach($Item in $Node){$Found+=@(Find-JsonProperty $Item $Name)}
+    return $Found
+  }
+  if($Node -is [System.Management.Automation.PSCustomObject]){
+    foreach($Prop in $Node.PSObject.Properties){
+      if($Prop.Name -eq $Name){$Found+=,$Prop.Value}
+      if(($Prop.Value -is [System.Management.Automation.PSCustomObject]) -or ($Prop.Value -is [System.Array])){
+        $Found+=@(Find-JsonProperty $Prop.Value $Name)
+      }
+    }
+  }
+  return $Found
+}
+
+$ReplayHits=@(Find-JsonProperty $E "c1_18_confirmation_replay")
+if($ReplayHits.Count -ne 1){throw "EXPECTED EXACTLY 1 c1_18_confirmation_replay; FOUND $($ReplayHits.Count)"}
+$R=$ReplayHits[0]
 if([int]$R.candidate_count -ne 400){throw "candidate_count"}
 if([int]$R.eligible_pair_count -ne 91){throw "eligible_pair_count"}
 if(@($R.selected_pairs).Count -ne 16){throw "replay selected_pairs"}
